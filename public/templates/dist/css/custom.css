@@ -1,0 +1,44 @@
+/* =========================
+   MAIN MENU (LEVEL 1)
+   ========================= */
+
+/* Menu utama aktif (hijau background, putih teks) */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active,
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active:hover {
+    background-color: #28a745 !important; /* Hijau */
+    color: #ffffff !important;
+}
+
+/* Icon menu utama aktif */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active i {
+    color: #ffffff !important;
+}
+
+/* Hover efek menu utama */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link:hover {
+    background-color: #218838 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================
+   SUBMENU (LEVEL 2+)
+   ========================= */
+
+/* Submenu aktif (putih background, teks hijau) */
+.sidebar-dark-primary .nav-treeview > .nav-item > .nav-link.active {
+    background-color: #ffffff !important;
+    color: #28a745 !important;
+    font-weight: normal !important;
+}
+
+/* Icon submenu aktif */
+.sidebar-dark-primary .nav-treeview > .nav-item > .nav-link.active i {
+    color: #28a745 !important;
+}
+
+/* Hover submenu (opsional) */
+.sidebar-dark-primary .nav-treeview > .nav-item > .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
