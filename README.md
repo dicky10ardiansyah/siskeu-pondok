@@ -4,6 +4,7 @@
 
 - php spark db:seed DatabaseSeeder
 - php spark db:seed StudentSeeder
+- php spark db:seed PaymentCategorySeeder
 
 ## What is CodeIgniter?
 

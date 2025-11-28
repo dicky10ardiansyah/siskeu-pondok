@@ -25,6 +25,12 @@ class Payments extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+            'journal_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'total_amount' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '10,2',
@@ -56,6 +62,7 @@ class Payments extends Migration
         $this->forge->addKey('id', true);
         $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('journal_id', 'journals', 'id', 'CASCADE', 'SET NULL');
         $this->forge->createTable('payments');
     }
 

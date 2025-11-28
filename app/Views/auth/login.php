@@ -7,7 +7,7 @@
         <div class="card-header text-center">
             <!-- Tambahkan logo di atas h1 -->
             <a href="<?= base_url('/') ?>">
-                <img src="<?= base_url('templates') ?>/dist/img/blue-whale.png"
+                <img src="<?= base_url('templates') ?>/dist/img/budget.png"
                     alt="Logo"
                     class="mb-2"
                     style="width: 100px; height: auto;">

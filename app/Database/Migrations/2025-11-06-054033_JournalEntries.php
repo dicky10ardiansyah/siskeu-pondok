@@ -24,6 +24,7 @@ class JournalEntries extends Migration
             'account_id' => [
                 'type'       => 'INT',
                 'constraint' => 11,
+                'unsigned'   => true,
                 'null'       => true,
             ],
             'debit' => [
@@ -47,6 +48,7 @@ class JournalEntries extends Migration
         ]);
 
         $this->forge->addKey('id', true);
+        $this->forge->addForeignKey('account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('journal_id', 'journals', 'id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('journal_entries');
     }

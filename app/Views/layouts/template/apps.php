@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FMIS | <?= $title ?? 'CodeIgniter 4' ?></title>
-    <link rel="icon" href="<?= base_url('templates') ?>/dist/img/blue-whale.png" type="image/x-icon">
+    <link rel="icon" href="<?= base_url('templates') ?>/dist/img/budget.png" type="image/x-icon">
     <!-- Google Font: Source Sans Pro -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
     <!-- Font Awesome -->
@@ -111,6 +111,20 @@
                                 <a href="<?= site_url('students') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'students' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-user-graduate"></i>
                                     <p>Siswa</p>
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="<?= site_url('bills') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'bills' ? 'active' : '' ?>">
+                                    <i class="nav-icon fas fa-receipt"></i>
+                                    <p>Tagihan</p>
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="<?= site_url('payments') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'payments' ? 'active' : '' ?>">
+                                    <i class="nav-icon fas fa-hand-holding-usd"></i>
+                                    <p>Pembayaran</p>
                                 </a>
                             </li>
 
