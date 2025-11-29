@@ -9,6 +9,17 @@
             <div class="card-header">
                 <h5>Tambah Pembayaran</h5>
             </div>
+
+            <?php if (session()->getFlashdata('error')) : ?>
+                <script>
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: '<?= session()->getFlashdata('error') ?>',
+                    });
+                </script>
+            <?php endif ?>
+
             <div class="card-body">
                 <form action="<?= base_url('payments/store') ?>" method="post" id="paymentForm">
                     <?= csrf_field() ?>

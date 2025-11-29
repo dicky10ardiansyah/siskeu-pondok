@@ -8,12 +8,15 @@
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
                 <h5 class="mb-0">Daftar Pembayaran</h5>
-                <a href="<?= base_url('payments/create') ?>" class="btn btn-primary ml-auto">
-                    <i class="fas fa-plus"></i> Tambah Pembayaran
-                </a>
-                <a href="<?= base_url('payment-categories') ?>" class="btn btn-outline-primary ml-auto">
-                    <i class="fas fa-list"></i> Kategori
-                </a>
+
+                <div class="ml-auto">
+                    <a href="<?= base_url('payments/create') ?>" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Tambah Pembayaran
+                    </a>
+                    <a href="<?= base_url('payment-categories') ?>" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Kategori
+                    </a>
+                </div>
             </div>
 
             <div class="card-body">

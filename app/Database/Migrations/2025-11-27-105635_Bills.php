@@ -26,12 +26,13 @@ class Bills extends Migration
                 'unsigned'   => true,
             ],
             'month' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '255',
+                'type'       => 'TINYINT',
+                'constraint' => 2,
+                'unsigned'   => true,
             ],
             'year' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '255',
+                'type'       => 'SMALLINT',
+                'unsigned'   => true,
             ],
             'amount' => [
                 'type'       => 'DECIMAL',

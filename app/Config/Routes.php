@@ -61,6 +61,7 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
 
     $routes->get('bills', 'BillsController::index');
     $routes->get('bills/generate', 'BillsController::generate');
+    $routes->post('bills/generate', 'BillsController::generate');
     $routes->get('bills/detail/(:num)', 'BillsController::detail/$1');
     $routes->get('bills/print/(:num)', 'BillsController::print/$1');
 

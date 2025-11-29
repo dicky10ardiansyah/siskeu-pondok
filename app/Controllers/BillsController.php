@@ -23,59 +23,54 @@ class BillsController extends BaseController
         $this->categoryModel = new PaymentCategoryModel();
     }
 
-    // ================= INDEX =================
     public function index()
     {
         $request = $this->request;
 
-        // -------------------------
-        // Ambil filter
-        // -------------------------
         $search = $request->getGet('q');
         $selectedClass = $request->getGet('class');
         $selectedStatus = $request->getGet('status');
-        $selectedMonth = $request->getGet('month');
-        $selectedYear = $request->getGet('year');
+        $selectedMonth = $request->getGet('month') ?? date('m');
+        $selectedYear = $request->getGet('year') ?? date('Y');
 
         $perPage = 10;
 
-        // -------------------------
-        // Ambil siswa sesuai filter
-        // -------------------------
+        // Pagination siswa (filter search & class)
         $studentBuilder = $this->studentModel;
-
         if ($search) $studentBuilder = $studentBuilder->like('name', $search);
         if ($selectedClass) $studentBuilder = $studentBuilder->where('class', $selectedClass);
 
-        $students = $studentBuilder->paginate($perPage);
-        $pager = $this->studentModel->pager;
+        $students = $studentBuilder->paginate($perPage, 'students');
+        $pager = $studentBuilder->pager;
+        $pager->setPath('bills');
 
-        // Ambil semua bills sesuai filter
-        $billsQuery = $this->billModel->select('bills.*, payment_categories.name as category_name')
-            ->join('payment_categories', 'payment_categories.id = bills.category_id');
+        // Ambil tagihan siswa di halaman ini
+        $studentIds = array_column($students, 'id');
+        $bills = [];
+        if (!empty($studentIds)) {
+            $billBuilder = $this->billModel
+                ->select('bills.*, payment_categories.name as category_name, students.name as student_name, students.class')
+                ->join('payment_categories', 'payment_categories.id = bills.category_id')
+                ->join('students', 'students.id = bills.student_id')
+                ->where('month', (int)$selectedMonth)
+                ->where('year', (int)$selectedYear)
+                ->whereIn('student_id', $studentIds)
+                ->orderBy('students.name', 'ASC');
 
-        if ($selectedStatus) $billsQuery = $billsQuery->where('status', $selectedStatus);
-        if ($selectedMonth) $billsQuery = $billsQuery->where('month', $selectedMonth);
-        if ($selectedYear) $billsQuery = $billsQuery->where('year', $selectedYear);
+            if ($selectedStatus) {
+                $billBuilder->where('bills.status', $selectedStatus);
+            }
 
-        $allBills = $billsQuery->findAll();
-
-        // -------------------------
-        // Group bills per student
-        // -------------------------
-        $billsGrouped = [];
-        foreach ($allBills as $bill) {
-            $billsGrouped[$bill['student_id']][] = $bill;
+            $bills = $billBuilder->findAll();
         }
 
-        // Ambil list kelas untuk filter dropdown
+        // Ambil daftar kelas untuk dropdown
         $classes = $this->studentModel->select('class')->distinct()->findColumn('class');
 
-        // Kirim data ke view
         return view('bills/index', [
             'students' => $students,
             'pager' => $pager,
-            'billsGrouped' => $billsGrouped,
+            'bills' => $bills,
             'classes' => $classes,
             'search' => $search,
             'selectedClass' => $selectedClass,
@@ -105,39 +100,51 @@ class BillsController extends BaseController
         ]);
     }
 
-    // ================= GENERATE =================
     public function generate()
     {
-        // Ambil semua siswa
-        $students = $this->studentModel->findAll();
+        $month = $this->request->getPost('month') ?? date('m');
+        $year = $this->request->getPost('year') ?? date('Y');
 
-        // Ambil kategori pembayaran
+        $students = $this->studentModel->findAll();
         $categories = $this->categoryModel->findAll();
 
-        // Loop siswa & generate tagihan sesuai kategori default
+        if (empty($students)) {
+            return redirect()->to('/bills')->with('error', 'Tidak ada siswa untuk digenerate.');
+        }
+
+        if (empty($categories)) {
+            return redirect()->to('/bills')->with('error', 'Tidak ada kategori pembayaran untuk digenerate.');
+        }
+
+        $insertedCount = 0;
+        $skippedCount = 0;
+
         foreach ($students as $student) {
             foreach ($categories as $cat) {
                 $exists = $this->billModel->where('student_id', $student['id'])
                     ->where('category_id', $cat['id'])
-                    ->where('month', date('m'))
-                    ->where('year', date('Y'))
+                    ->where('month', (int)$month)
+                    ->where('year', (int)$year)
                     ->first();
 
                 if (!$exists) {
                     $this->billModel->insert([
                         'student_id' => $student['id'],
                         'category_id' => $cat['id'],
-                        'month' => date('m'),
-                        'year' => date('Y'),
+                        'month' => (int)$month,
+                        'year' => (int)$year,
                         'amount' => $cat['default_amount'],
-                        'status' => 'unpaid',
-                        'created_at' => date('Y-m-d H:i:s')
+                        'status' => 'unpaid'
                     ]);
+                    $insertedCount++;
+                } else {
+                    $skippedCount++;
                 }
             }
         }
 
-        return redirect()->to('/bills')->with('success', 'Tagihan berhasil digenerate otomatis.');
+        $message = "Generate tagihan selesai. $insertedCount tagihan dibuat, $skippedCount tagihan sudah ada.";
+        return redirect()->to('/bills')->with('success', $message);
     }
 
     public function print($studentId)
