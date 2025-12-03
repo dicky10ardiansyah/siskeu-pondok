@@ -62,6 +62,36 @@
                         <?php endif; ?>
                     </div>
 
+                    <!-- Status Lulus -->
+                    <div class="form-group form-check mt-3">
+                        <input
+                            type="checkbox"
+                            class="form-check-input"
+                            name="status"
+                            id="status"
+                            value="1"
+                            <?= old('status') ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="status">Lulus</label>
+                    </div>
+
+                    <!-- Tahun Lulus -->
+                    <div class="form-group mt-2">
+                        <label for="school_year">Tahun Lulus</label>
+                        <input
+                            type="number"
+                            class="form-control <?= isset(session('errors')['school_year']) ? 'is-invalid' : '' ?>"
+                            name="school_year"
+                            id="school_year"
+                            value="<?= old('school_year') ?>"
+                            placeholder="Contoh: 2025">
+                        <?php if (isset(session('errors')['school_year'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['school_year'] ?>
+                            </div>
+                        <?php endif; ?>
+                        <small class="form-text text-muted">Isi hanya jika siswa sudah lulus.</small>
+                    </div>
+
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Simpan

@@ -7,380 +7,338 @@ use App\Models\AccountModel;
 use App\Models\JournalModel;
 use App\Models\PaymentModel;
 use App\Models\StudentModel;
-use App\Models\BillPaymentModel;
-use App\Models\JournalEntryModel;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class PaymentsController extends BaseController
 {
     protected $paymentModel;
-    protected $billModel;
-    protected $billPaymentModel;
     protected $studentModel;
     protected $accountModel;
     protected $journalModel;
-    protected $journalEntryModel;
-
+    protected $billModel;
     protected $db;
-
-    // di atas file: gunakan namespace & use sesuai controller Anda
+    protected $helpers = ['form'];
 
     public function __construct()
     {
-        helper(['form', 'url']);
-
-        $this->db = \Config\Database::connect();
-
         $this->paymentModel = new PaymentModel();
-        $this->billModel = new BillModel();
-        $this->billPaymentModel = new BillPaymentModel();
         $this->studentModel = new StudentModel();
         $this->accountModel = new AccountModel();
-
         $this->journalModel = new JournalModel();
-        $this->journalEntryModel = new JournalEntryModel();
+        $this->billModel    = new BillModel();
+        $this->db = \Config\Database::connect();
     }
 
+    // --------------------------------------------------
+    // INDEX + SEARCH + PAGINATION
+    // --------------------------------------------------
     public function index()
     {
         $search = $this->request->getGet('q');
         $perPage = 10;
 
         $builder = $this->paymentModel
-            ->select('payments.*, students.name as student_name, accounts.name as account_name')
-            ->join('students', 'students.id = payments.student_id')
-            ->join('accounts', 'accounts.id = payments.account_id')
+            ->select('payments.*, students.name as student_name, 
+                      debit_accounts.name as debit_account_name, debit_accounts.code as debit_account_code,
+                      credit_accounts.name as credit_account_name, credit_accounts.code as credit_account_code')
+            ->join('students', 'students.id = payments.student_id', 'left')
+            ->join('accounts as debit_accounts', 'debit_accounts.id = payments.debit_account_id', 'left')
+            ->join('accounts as credit_accounts', 'credit_accounts.id = payments.credit_account_id', 'left')
             ->orderBy('payments.id', 'DESC');
 
         if ($search) {
-            $builder->groupStart()
-                ->like('students.name', $search)
-                ->orLike('accounts.name', $search)
+            $builder->like('students.name', $search)
+                ->orLike('debit_accounts.name', $search)
+                ->orLike('credit_accounts.name', $search)
                 ->orLike('payments.reference', $search)
-                ->orLike('payments.method', $search)
-                ->groupEnd();
+                ->orLike('payments.method', $search);
         }
 
-        return view('payments/index', [
-            'payments' => $builder->paginate($perPage),
-            'pager' => $this->paymentModel->pager,
-            'search' => $search
-        ]);
+        $data['payments'] = $builder->paginate($perPage, 'payments');
+        $data['pager'] = $builder->pager;
+        $data['search'] = $search;
+
+        return view('payments/index', $data);
     }
 
+    // --------------------------------------------------
+    // FORM CREATE
+    // --------------------------------------------------
     public function create()
     {
-        return view('payments/create', [
-            'validation' => \Config\Services::validation(),
-            'accounts' => $this->accountModel->findAll(),
-            'students' => $this->studentModel->findAll(),
-            'preselectedStudent' => $this->request->getGet('student_id')
-        ]);
+        $data['students'] = $this->studentModel->findAll();
+        $allAccounts = $this->accountModel->findAll();
+
+        // Filter untuk debit only (asset, expense)
+        $data['debitAccounts'] = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'expense']);
+        });
+
+        // Filter untuk credit only (liability, equity, income)
+        $data['creditAccounts'] = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['liability', 'equity', 'income']);
+        });
+
+        $data['journals'] = $this->journalModel->findAll();
+
+        return view('payments/create', $data);
     }
 
+    // --------------------------------------------------
+    // STORE
+    // --------------------------------------------------
     public function store()
     {
-        if (!$this->validate([
-            'student_id'    => 'required',
-            'total_amount'  => 'required|decimal',
-            'date'          => 'required',
-            'account_id'    => 'required|is_not_unique[accounts.id]'
-        ])) {
-            return redirect()->back()->withInput()
-                ->with('error', 'Validasi gagal. Periksa form Anda.');
+        $validationRules = [
+            'student_id'       => 'required|integer',
+            'debit_account_id' => 'required|integer',
+            'credit_account_id' => 'required|integer',
+            'total_amount'     => 'required|decimal',
+            'date'             => 'required',
+            'method'           => 'permit_empty|string',
+            'reference'        => 'permit_empty|string'
+        ];
+
+        if (!$this->validate($validationRules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $studentId = $this->request->getPost('student_id');
-        $amount    = (float)$this->request->getPost('total_amount');
-        $accountId = $this->request->getPost('account_id');
-        $date      = $this->request->getPost('date');
+        $paymentData = [
+            'student_id'       => $this->request->getPost('student_id'),
+            'debit_account_id' => $this->request->getPost('debit_account_id'),
+            'credit_account_id' => $this->request->getPost('credit_account_id'),
+            'total_amount'     => $this->request->getPost('total_amount'),
+            'date'             => $this->request->getPost('date'),
+            'method'           => $this->request->getPost('method'),
+            'reference'        => $this->request->getPost('reference'),
+        ];
 
-        $db = \Config\Database::connect();
-        $db->transStart();
+        // Simpan payment
+        $this->paymentModel->save($paymentData);
+        $paymentId = $this->paymentModel->getInsertID();
 
-        try {
+        // Ambil student
+        $student = $this->studentModel->find($paymentData['student_id']);
+        $refText = $paymentData['reference'] ? " - Ref: {$paymentData['reference']}" : "";
+        $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
 
-            // INSERT PAYMENT
-            $this->paymentModel->insert([
-                'student_id'    => $studentId,
-                'account_id'    => $accountId,
-                'total_amount'  => $amount,
-                'date'          => $date,
-                'method'        => $this->request->getPost('method'),
-                'reference'     => $this->request->getPost('reference')
-            ]);
+        // Buat jurnal
+        $journalId = $this->journalModel->insert([
+            'date'        => $paymentData['date'],
+            'description' => $description,
+            'user_id'     => session()->get('user_id') ?? null,
+        ]);
 
-            $paymentId = $this->paymentModel->getInsertID();
+        // Update payment dengan journal_id
+        $this->paymentModel->update($paymentId, ['journal_id' => $journalId]);
 
-            if (!$paymentId) {
-                throw new \Exception('Gagal menyimpan data pembayaran.');
-            }
+        // Buat journal entries
+        $journalEntryModel = new \App\Models\JournalEntryModel();
+        $journalEntryModel->insert([
+            'journal_id' => $journalId,
+            'account_id' => $paymentData['debit_account_id'],
+            'debit'      => $paymentData['total_amount'],
+            'credit'     => 0,
+        ]);
+        $journalEntryModel->insert([
+            'journal_id' => $journalId,
+            'account_id' => $paymentData['credit_account_id'],
+            'debit'      => 0,
+            'credit'     => $paymentData['total_amount'],
+        ]);
 
-            // CREATE JOURNAL (wajib akun income)
-            $this->createJournalForPayment($paymentId, $studentId, $accountId, $amount, $date);
+        // =============================
+        // Update bills
+        // =============================
+        $this->updateBills($paymentData['student_id']);
 
-            // ALOKASI KE BILL
-            $this->allocateToBills($studentId, $paymentId, $amount);
-
-            $db->transComplete();
-
-            if ($db->transStatus() === false) {
-                throw new \Exception('Terjadi kesalahan transaksi database.');
-            }
-
-            session()->setFlashdata('success', 'Payment berhasil disimpan.');
-            return redirect()->to('/payments');
-        } catch (\Exception $e) {
-
-            $db->transRollback();
-
-            // kirim pesan error ke view
-            return redirect()->back()->withInput()
-                ->with('error', $e->getMessage());
-        }
+        return redirect()->to('/payments')->with('success', 'Payment berhasil disimpan!');
     }
 
+    // --------------------------------------------------
+    // FORM EDIT
+    // --------------------------------------------------
     public function edit($id)
     {
         $payment = $this->paymentModel->find($id);
+
         if (!$payment) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Payment not found');
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Pembayaran tidak ditemukan');
         }
 
-        return view('payments/edit', [
-            'payment' => $payment,
-            'students' => $this->studentModel->findAll(),
-            'accounts' => $this->accountModel->findAll(),
-            'validation' => \Config\Services::validation()
-        ]);
+        $allAccounts = $this->accountModel->findAll();
+
+        // Filter debit (asset, expense)
+        $debitAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'expense']);
+        });
+
+        // Filter credit (liability, equity, income)
+        $creditAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['liability', 'equity', 'income']);
+        });
+
+        $data = [
+            'payment'       => $payment,
+            'students'      => $this->studentModel->findAll(),
+            'debitAccounts' => $debitAccounts,
+            'creditAccounts' => $creditAccounts,
+            'journals'      => $this->journalModel->findAll(),
+        ];
+
+        return view('payments/edit', $data);
     }
 
-    // update() — juga dibungkus transaksi dan hapus jurnal lama sebelum membuat yang baru
+    // --------------------------------------------------
+    // UPDATE
+    // --------------------------------------------------
     public function update($id)
     {
         $payment = $this->paymentModel->find($id);
         if (!$payment) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Payment not found');
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Payment tidak ditemukan');
         }
 
-        if (!$this->validate([
-            'student_id' => 'required',
-            'total_amount' => 'required|decimal',
-            'date' => 'required',
-            'account_id' => 'required|is_not_unique[accounts.id]'
-        ])) {
-            return redirect()->back()->withInput();
+        $validationRules = [
+            'student_id'       => 'required|integer',
+            'debit_account_id' => 'required|integer',
+            'credit_account_id' => 'required|integer',
+            'total_amount'     => 'required|decimal',
+            'date'             => 'required',
+            'method'           => 'permit_empty|string',
+            'reference'        => 'permit_empty|string'
+        ];
+
+        if (!$this->validate($validationRules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $studentId = $this->request->getPost('student_id');
-        $amount = (float)$this->request->getPost('total_amount');
-        $accountId = $this->request->getPost('account_id');
-        $date = $this->request->getPost('date');
+        $data = [
+            'student_id'       => $this->request->getPost('student_id'),
+            'debit_account_id' => $this->request->getPost('debit_account_id'),
+            'credit_account_id' => $this->request->getPost('credit_account_id'),
+            'total_amount'     => $this->request->getPost('total_amount'),
+            'date'             => $this->request->getPost('date'),
+            'method'           => $this->request->getPost('method'),
+            'reference'        => $this->request->getPost('reference'),
+        ];
 
-        $this->db->transStart();
+        // Update payment
+        $this->paymentModel->update($id, $data);
 
-        try {
-            // revert allocation first
-            $this->revertAllocation($id);
+        // Update jurnal dan journal entries
+        if ($payment['journal_id']) {
+            $student = $this->studentModel->find($data['student_id']);
+            $refText = $data['reference'] ? " - Ref: {$data['reference']}" : "";
+            $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
 
-            // delete old journal
-            $this->deleteJournalByPayment($id);
-
-            // update payment
-            $this->paymentModel->update($id, [
-                'student_id' => $studentId,
-                'account_id' => $accountId,
-                'total_amount' => $amount,
-                'date' => $date,
-                'method' => $this->request->getPost('method'),
-                'reference' => $this->request->getPost('reference')
+            $this->journalModel->update($payment['journal_id'], [
+                'date'        => $data['date'],
+                'description' => $description,
+                'user_id'     => session()->get('user_id') ?? null,
             ]);
 
-            // create journal again
-            $this->createJournalForPayment($id, $studentId, $accountId, $amount, $date);
+            $journalEntryModel = new \App\Models\JournalEntryModel();
+            $journalEntryModel->where('journal_id', $payment['journal_id'])->delete();
 
-            // reallocate
-            $this->allocateToBills($studentId, $id, $amount);
-
-            $this->db->transComplete();
-
-            if ($this->db->transStatus() === false) {
-                throw new \Exception('Transaksi DB gagal saat mengupdate payment/jurnal.');
-            }
-
-            session()->setFlashdata('success', 'Payment updated successfully.');
-            return redirect()->to('/payments');
-        } catch (\Exception $e) {
-            $this->db->transRollback();
-            log_message('error', 'Payment update error: ' . $e->getMessage());
-            session()->setFlashdata('error', 'Gagal mengupdate payment: ' . $e->getMessage());
-            return redirect()->back()->withInput();
+            $journalEntryModel->insert([
+                'journal_id' => $payment['journal_id'],
+                'account_id' => $data['debit_account_id'],
+                'debit'      => $data['total_amount'],
+                'credit'     => 0,
+            ]);
+            $journalEntryModel->insert([
+                'journal_id' => $payment['journal_id'],
+                'account_id' => $data['credit_account_id'],
+                'debit'      => 0,
+                'credit'     => $data['total_amount'],
+            ]);
         }
+
+        // Update bills
+        $this->updateBills($data['student_id']);
+
+        return redirect()->to('/payments')->with('success', 'Payment berhasil diperbarui!');
     }
 
-    // delete() — hapus jurnal dulu, revert allocation, kemudian delete payment, juga dibungkus transaksi
+    // --------------------------------------------------
+    // DELETE
+    // --------------------------------------------------
     public function delete($id)
     {
         $payment = $this->paymentModel->find($id);
+
         if (!$payment) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Payment not found');
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Payment tidak ditemukan');
         }
 
-        $this->db->transStart();
+        $studentId = $payment['student_id'];
 
-        try {
-            $this->revertAllocation($id);
-            $this->deleteJournalByPayment($id);
-            $this->paymentModel->delete($id);
-
-            $this->db->transComplete();
-
-            if ($this->db->transStatus() === false) {
-                throw new \Exception('Transaksi DB gagal saat delete payment.');
-            }
-
-            session()->setFlashdata('success', 'Payment deleted successfully.');
-            return redirect()->to('/payments');
-        } catch (\Exception $e) {
-            $this->db->transRollback();
-            log_message('error', 'Payment delete error: ' . $e->getMessage());
-            session()->setFlashdata('error', 'Gagal menghapus payment: ' . $e->getMessage());
-            return redirect()->back();
+        // Hapus jurnal beserta journal_entries jika ada
+        if ($payment['journal_id']) {
+            $journalEntryModel = new \App\Models\JournalEntryModel();
+            $journalEntryModel->where('journal_id', $payment['journal_id'])->delete();
+            $this->journalModel->delete($payment['journal_id']);
         }
+
+        // Hapus payment
+        $this->paymentModel->delete($id);
+
+        // Update bills
+        $this->updateBills($studentId);
+
+        return redirect()->to('/payments')->with('success', 'Payment berhasil dihapus dan tagihan diperbarui!');
     }
 
-    // ===============================
-    // PRIVATE FUNCTIONS
-    // ===============================
-
-    private function createJournalForPayment($paymentId, $studentId, $accountId, $amount, $date)
+    // --------------------------------------------------
+    // FUNCTION UTILITY UPDATE BILLS
+    // --------------------------------------------------
+    private function updateBills($studentId)
     {
-        // Ambil akun debit (kas/bank)
-        $debitAcc = $this->accountModel->find($accountId);
-        if (!$debitAcc) {
-            throw new \Exception("Akun kas/bank dengan ID {$accountId} tidak ditemukan.");
+        // Reset semua bills student
+        $allBills = $this->billModel->where('student_id', $studentId)->findAll();
+        foreach ($allBills as $bill) {
+            $this->billModel->update($bill['id'], [
+                'paid_amount' => 0,
+                'status'      => 'unpaid'
+            ]);
         }
 
-        // Default income account ID (ubah sesuai kebutuhan)
-        $defaultIncomeAccountId = 5;
-
-        // Cek apakah akun pendapatan default ada
-        $incomeAcc = $this->accountModel->find($defaultIncomeAccountId);
-
-        // Jika tidak ada, cari akun dengan type = 'income'
-        if (!$incomeAcc) {
-            $row = $this->db->table('accounts')->where('type', 'income')->limit(1)->get()->getRowArray();
-            if ($row) {
-                $incomeAccountId = $row['id'];
-            } else {
-                throw new \Exception('Tidak ditemukan akun pendapatan (income). Silakan buat akun bertipe "income".');
-            }
-        } else {
-            $incomeAccountId = $defaultIncomeAccountId;
-        }
-
-        // Ambil nama siswa
-        $student = $this->studentModel->find($studentId);
-        $studentName = $student ? $student['name'] : 'Unknown';
-
-        // Insert jurnal utama
-        $this->journalModel->insert([
-            'date' => $date,
-            'description' => "Pembayaran siswa: {$studentName} (Payment ID: {$paymentId})",
-            'user_id' => session()->get('id') ?? 1
-        ]);
-        $journalId = $this->journalModel->getInsertID();
-
-        if (!$journalId) {
-            throw new \Exception('Gagal membuat jurnal utama.');
-        }
-
-        // Insert journal_entries: DEBIT (kas/bank)
-        $this->journalEntryModel->insert([
-            'journal_id' => $journalId,
-            'account_id' => $accountId,
-            'debit' => $amount,
-            'credit' => 0
-        ]);
-
-        // Insert journal_entries: KREDIT (pendapatan)
-        $this->journalEntryModel->insert([
-            'journal_id' => $journalId,
-            'account_id' => $incomeAccountId,
-            'debit' => 0,
-            'credit' => $amount
-        ]);
-
-        return $journalId;
-    }
-
-    private function deleteJournalByPayment($paymentId)
-    {
-        $desc = "Payment ID: $paymentId";
-
-        $journal = $this->journalModel
-            ->like('description', $desc)
-            ->first();
-
-        if ($journal) {
-            $this->journalEntryModel->where('journal_id', $journal['id'])->delete();
-            $this->journalModel->delete($journal['id']);
-        }
-    }
-
-    private function allocateToBills($studentId, $paymentId, $amount)
-    {
-        $bills = $this->billModel->where('student_id', $studentId)
-            ->where('status !=', 'paid')
-            ->orderBy('id', 'ASC')
+        // Hitung ulang semua payment student
+        $payments = $this->paymentModel
+            ->where('student_id', $studentId)
+            ->orderBy('date', 'ASC')
             ->findAll();
 
-        $remaining = $amount;
+        foreach ($payments as $p) {
+            $totalPayment = (float)$p['total_amount'];
+            $bills = $this->billModel
+                ->where('student_id', $studentId)
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->orderBy('year', 'ASC')
+                ->orderBy('month', 'ASC')
+                ->findAll();
 
-        foreach ($bills as $bill) {
-            if ($remaining <= 0) break;
+            foreach ($bills as $bill) {
+                $remaining = $bill['amount'] - $bill['paid_amount'];
+                if ($totalPayment <= 0) break;
 
-            $payAmount = min($remaining, $bill['amount'] - ($bill['paid_amount'] ?? 0));
+                if ($totalPayment >= $remaining) {
+                    $bill['paid_amount'] += $remaining;
+                    $bill['status'] = 'paid';
+                    $totalPayment -= $remaining;
+                } else {
+                    $bill['paid_amount'] += $totalPayment;
+                    $bill['status'] = 'partial';
+                    $totalPayment = 0;
+                }
 
-            $this->billPaymentModel->insert([
-                'bill_id' => $bill['id'],
-                'payment_id' => $paymentId,
-                'amount' => $payAmount
-            ]);
-
-            $newPaid = ($bill['paid_amount'] ?? 0) + $payAmount;
-            $status = 'unpaid';
-            if ($newPaid >= $bill['amount']) $status = 'paid';
-            elseif ($newPaid > 0) $status = 'partial';
-
-            $this->billModel->update($bill['id'], [
-                'paid_amount' => $newPaid,
-                'status' => $status
-            ]);
-
-            $remaining -= $payAmount;
+                $this->billModel->update($bill['id'], [
+                    'paid_amount' => $bill['paid_amount'],
+                    'status'      => $bill['status']
+                ]);
+            }
         }
-    }
-
-    private function revertAllocation($paymentId)
-    {
-        $allocations = $this->billPaymentModel->where('payment_id', $paymentId)->findAll();
-
-        foreach ($allocations as $alloc) {
-            $bill = $this->billModel->find($alloc['bill_id']);
-            $newPaid = ($bill['paid_amount'] ?? 0) - $alloc['amount'];
-
-            $status = 'unpaid';
-            if ($newPaid >= $bill['amount']) $status = 'paid';
-            elseif ($newPaid > 0) $status = 'partial';
-
-            $this->billModel->update($bill['id'], [
-                'paid_amount' => max(0, $newPaid),
-                'status' => $status
-            ]);
-        }
-
-        $this->billPaymentModel->where('payment_id', $paymentId)->delete();
     }
 }

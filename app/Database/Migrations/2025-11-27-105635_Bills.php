@@ -28,7 +28,7 @@ class Bills extends Migration
             'month' => [
                 'type'       => 'TINYINT',
                 'constraint' => 2,
-                'unsigned'   => true,
+                'null'       => true,
             ],
             'year' => [
                 'type'       => 'SMALLINT',

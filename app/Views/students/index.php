@@ -36,6 +36,8 @@
                                 <th>Nama</th>
                                 <th>NIS</th>
                                 <th>Kelas</th>
+                                <th>Status Lulus</th>
+                                <th>Tahun Lulus</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -51,6 +53,14 @@
                                         <td><?= esc($student['nis']) ?></td>
                                         <td><?= esc($student['class']) ?></td>
                                         <td>
+                                            <?php if ($student['status']) : ?>
+                                                <span class="badge badge-success">Lulus</span>
+                                            <?php else : ?>
+                                                <span class="badge badge-secondary">Belum Lulus</span>
+                                            <?php endif ?>
+                                        </td>
+                                        <td><?= esc($student['school_year'] ?? '-') ?></td>
+                                        <td>
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('students/edit/' . $student['id']) ?>" class="btn btn-sm btn-warning mr-2">
                                                     <i class="fas fa-edit"></i> Edit
@@ -64,7 +74,7 @@
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada data siswa.</td>
+                                    <td colspan="7" class="text-center">Tidak ada data siswa.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>

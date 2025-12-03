@@ -15,41 +15,82 @@
 
                     <div class="form-group">
                         <label for="name">Nama Kategori</label>
-                        <input type="text" name="name" id="name" class="form-control" value="<?= set_value('name', $category['name']) ?>" required>
-                        <?php if (isset($validation) && $validation->hasError('name')) : ?>
-                            <small class="text-danger"><?= $validation->getError('name') ?></small>
-                        <?php endif ?>
+                        <input
+                            type="text"
+                            class="form-control <?= isset(session('errors')['name']) ? 'is-invalid' : '' ?>"
+                            name="name"
+                            id="name"
+                            value="<?= old('name', $category['name']) ?>"
+                            placeholder="Contoh: SPP, Listrik, Air">
+                        <?php if (isset(session('errors')['name'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['name'] ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="form-group">
-                        <label for="default_amount">Nominal Default</label>
-                        <input type="number" name="default_amount" id="default_amount" class="form-control" step="0.01" value="<?= set_value('default_amount', $category['default_amount']) ?>" required>
-                        <?php if (isset($validation) && $validation->hasError('default_amount')) : ?>
-                            <small class="text-danger"><?= $validation->getError('default_amount') ?></small>
-                        <?php endif ?>
+                        <label for="default_amount">Jumlah Default</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            class="form-control <?= isset(session('errors')['default_amount']) ? 'is-invalid' : '' ?>"
+                            name="default_amount"
+                            id="default_amount"
+                            value="<?= old('default_amount', $category['default_amount']) ?>"
+                            placeholder="Contoh: 100000">
+                        <?php if (isset(session('errors')['default_amount'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['default_amount'] ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                    <a href="<?= base_url('payment-categories') ?>" class="btn btn-secondary">Batal</a>
+                    <div class="form-group">
+                        <label for="billing_type">Tipe Tagihan</label>
+                        <select
+                            name="billing_type"
+                            id="billing_type"
+                            class="form-control <?= isset(session('errors')['billing_type']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Tipe Tagihan --</option>
+                            <?php $oldType = old('billing_type', $category['billing_type']); ?>
+                            <option value="monthly" <?= $oldType === 'monthly' ? 'selected' : '' ?>>Monthly (Bulanan)</option>
+                            <option value="one-time" <?= $oldType === 'one-time' ? 'selected' : '' ?>>One-Time (Sekali)</option>
+                        </select>
+                        <?php if (isset(session('errors')['billing_type'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['billing_type'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="duration_months">Durasi (Bulan)</label>
+                        <input
+                            type="number"
+                            class="form-control <?= isset(session('errors')['duration_months']) ? 'is-invalid' : '' ?>"
+                            name="duration_months"
+                            id="duration_months"
+                            value="<?= old('duration_months', $category['duration_months']) ?>"
+                            placeholder="Contoh: 12">
+                        <?php if (isset(session('errors')['duration_months'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['duration_months'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update
+                        </button>
+                        <a href="<?= base_url('payment-categories') ?>" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Batal
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
-
-<!-- SweetAlert2 pesan sukses -->
-<?php if (session()->getFlashdata('success')) : ?>
-    <script>
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: '<?= session()->getFlashdata('success') ?>',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-        });
-    </script>
-<?php endif ?>
-
 <?= $this->endSection() ?>

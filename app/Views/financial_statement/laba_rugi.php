@@ -1,13 +1,11 @@
 <?= $this->extend('layouts/template/apps') ?>
-
 <?php $this->setVar('title', 'Laporan Laba Rugi'); ?>
-
 <?= $this->section('content') ?>
 <div class="row">
     <div class="col">
-        <div class="card">
+        <div class="card card-primary card-outline">
             <div class="card-header">
-                <h5 class="mb-0">Laporan Laba Rugi</h5>
+                <h5 class="card-title mb-0">Laporan Laba Rugi</h5>
             </div>
             <div class="card-body">
 
@@ -19,23 +17,23 @@
                             <tr>
                                 <th>#</th>
                                 <th>Nama Akun</th>
-                                <th>Saldo</th>
+                                <th class="text-end">Saldo</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php $no = 1;
-                            foreach ($income as $row) : ?>
+                            foreach ($income as $i): ?>
                                 <tr>
                                     <td><?= $no++ ?></td>
-                                    <td><?= esc($row['account_name']) ?></td>
-                                    <td><?= number_format($row['saldo'], 2, ',', '.') ?></td>
+                                    <td><?= esc($i['account_name']) ?></td>
+                                    <td class="text-end"><?= number_format($i['saldo'], 2, ',', '.') ?></td>
                                 </tr>
                             <?php endforeach ?>
                         </tbody>
                         <tfoot>
-                            <tr>
-                                <th colspan="2" class="text-right">Total Pendapatan</th>
-                                <th><?= number_format($total_income, 2, ',', '.') ?></th>
+                            <tr class="table-primary">
+                                <th colspan="2" class="text-end">Total Pendapatan</th>
+                                <th class="text-end"><?= number_format($total_income, 2, ',', '.') ?></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -49,23 +47,23 @@
                             <tr>
                                 <th>#</th>
                                 <th>Nama Akun</th>
-                                <th>Saldo</th>
+                                <th class="text-end">Saldo</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php $no = 1;
-                            foreach ($expense as $row) : ?>
+                            foreach ($expense as $e): ?>
                                 <tr>
                                     <td><?= $no++ ?></td>
-                                    <td><?= esc($row['account_name']) ?></td>
-                                    <td><?= number_format($row['saldo'], 2, ',', '.') ?></td>
+                                    <td><?= esc($e['account_name']) ?></td>
+                                    <td class="text-end"><?= number_format($e['saldo'], 2, ',', '.') ?></td>
                                 </tr>
                             <?php endforeach ?>
                         </tbody>
                         <tfoot>
-                            <tr>
-                                <th colspan="2" class="text-right">Total Beban</th>
-                                <th><?= number_format($total_expense, 2, ',', '.') ?></th>
+                            <tr class="table-danger">
+                                <th colspan="2" class="text-end">Total Beban</th>
+                                <th class="text-end"><?= number_format($total_expense, 2, ',', '.') ?></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -73,19 +71,20 @@
 
                 <!-- Laba Bersih -->
                 <h6>Laba/Rugi Bersih</h6>
-                <div class="alert alert-info font-weight-bold">
+                <div class="alert alert-info font-weight-bold text-end">
                     <?= number_format($net_profit, 2, ',', '.') ?>
                 </div>
 
                 <!-- Grafik Chart.js -->
                 <h6>Grafik Pendapatan vs Beban</h6>
-                <canvas id="profitChart" height="100"></canvas>
+                <canvas id="profitChart" height="120"></canvas>
 
             </div>
         </div>
     </div>
 </div>
 
+<!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const ctx = document.getElementById('profitChart').getContext('2d');
@@ -94,7 +93,7 @@
         data: {
             labels: ['Pendapatan', 'Beban', 'Laba Bersih'],
             datasets: [{
-                label: 'Jumlah',
+                label: 'Jumlah (Rp)',
                 data: [<?= $total_income ?>, <?= $total_expense ?>, <?= $net_profit ?>],
                 backgroundColor: [
                     'rgba(40, 167, 69, 0.7)', // hijau
@@ -111,13 +110,33 @@
         },
         options: {
             responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Rp ' + context.raw.toLocaleString('id-ID', {
+                                minimumFractionDigits: 2
+                            });
+                        }
+                    }
+                },
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Rp ' + value.toLocaleString('id-ID', {
+                                minimumFractionDigits: 2
+                            });
+                        }
+                    }
                 }
             }
         }
     });
 </script>
-
 <?= $this->endSection() ?>

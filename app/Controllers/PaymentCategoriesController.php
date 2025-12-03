@@ -9,14 +9,16 @@ use CodeIgniter\HTTP\ResponseInterface;
 class PaymentCategoriesController extends BaseController
 {
     protected $paymentCategoryModel;
+    protected $helpers = ['form'];
 
     public function __construct()
     {
-        helper(['form', 'url']);
         $this->paymentCategoryModel = new PaymentCategoryModel();
     }
 
-    // ================= INDEX =================
+    // --------------------------------------------------
+    // INDEX + SEARCH + PAGINATION
+    // --------------------------------------------------
     public function index()
     {
         $search = $this->request->getGet('q');
@@ -28,93 +30,98 @@ class PaymentCategoriesController extends BaseController
             $builder = $builder->like('name', $search);
         }
 
-        $categories = $builder->paginate($perPage, 'categories');
+        $data['paymentCategories'] = $builder->paginate($perPage, 'payment_categories');
+        $data['pager'] = $this->paymentCategoryModel->pager;
+        $data['search'] = $search;
 
-        return view('payment_categories/index', [
-            'categories' => $categories,
-            'pager' => $this->paymentCategoryModel->pager,
-            'search' => $search
-        ]);
+        return view('payment_categories/index', $data);
     }
 
-    // ================= CREATE =================
+    // --------------------------------------------------
+    // FORM CREATE
+    // --------------------------------------------------
     public function create()
     {
-        return view('payment_categories/create', [
-            'validation' => \Config\Services::validation()
-        ]);
+        return view('payment_categories/create');
     }
 
-    // ================= STORE =================
+    // --------------------------------------------------
+    // STORE
+    // --------------------------------------------------
     public function store()
     {
-        $validation = $this->validate([
-            'name' => 'required|is_unique[payment_categories.name]',
-            'default_amount' => 'required|numeric|greater_than_equal_to[0]'
-        ]);
+        $validationRules = [
+            'name' => 'required|min_length[3]',
+            'default_amount' => 'permit_empty|decimal',
+            'billing_type' => 'required|in_list[monthly,one-time]',
+            'duration_months' => 'permit_empty|integer'
+        ];
 
-        if (!$validation) {
-            return redirect()->back()->withInput()->with('validation', $this->validator);
+        if (!$this->validate($validationRules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
         $this->paymentCategoryModel->save([
             'name' => $this->request->getPost('name'),
-            'default_amount' => $this->request->getPost('default_amount')
+            'default_amount' => $this->request->getPost('default_amount') ?: null,
+            'billing_type' => $this->request->getPost('billing_type'),
+            'duration_months' => $this->request->getPost('duration_months') ?: null
         ]);
 
-        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil ditambahkan.');
+        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil ditambahkan!');
     }
 
-    // ================= EDIT =================
+    // --------------------------------------------------
+    // FORM EDIT
+    // --------------------------------------------------
     public function edit($id)
     {
         $category = $this->paymentCategoryModel->find($id);
+
         if (!$category) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound("Kategori tidak ditemukan");
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Kategori pembayaran tidak ditemukan');
         }
 
-        return view('payment_categories/edit', [
-            'category' => $category,
-            'validation' => \Config\Services::validation()
-        ]);
+        return view('payment_categories/edit', ['category' => $category]);
     }
 
-    // ================= UPDATE =================
+    // --------------------------------------------------
+    // UPDATE
+    // --------------------------------------------------
     public function update($id)
     {
         $category = $this->paymentCategoryModel->find($id);
         if (!$category) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound("Kategori tidak ditemukan");
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Kategori pembayaran tidak ditemukan');
         }
 
-        $validation = $this->validate([
-            'name' => "required|is_unique[payment_categories.name,id,{$id}]",
-            'default_amount' => 'required|numeric|greater_than_equal_to[0]'
-        ]);
+        $validationRules = [
+            'name' => 'required|min_length[3]',
+            'default_amount' => 'permit_empty|decimal',
+            'billing_type' => 'required|in_list[monthly,one-time]',
+            'duration_months' => 'permit_empty|integer'
+        ];
 
-        if (!$validation) {
-            return redirect()->back()->withInput()->with('validation', $this->validator);
+        if (!$this->validate($validationRules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
         $this->paymentCategoryModel->update($id, [
             'name' => $this->request->getPost('name'),
-            'default_amount' => $this->request->getPost('default_amount')
+            'default_amount' => $this->request->getPost('default_amount') ?: null,
+            'billing_type' => $this->request->getPost('billing_type'),
+            'duration_months' => $this->request->getPost('duration_months') ?: null
         ]);
 
-        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil diperbarui.');
+        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil diupdate!');
     }
 
-    // ================= DELETE =================
+    // --------------------------------------------------
+    // DELETE
+    // --------------------------------------------------
     public function delete($id)
     {
-        $category = $this->paymentCategoryModel->find($id);
-        if (!$category) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound("Kategori tidak ditemukan");
-        }
-
-        // Optional: cek apakah kategori sudah ada tagihan
         $this->paymentCategoryModel->delete($id);
-
-        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil dihapus.');
+        return redirect()->to('/payment-categories')->with('success', 'Kategori pembayaran berhasil dihapus!');
     }
 }

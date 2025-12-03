@@ -59,11 +59,10 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->post('/students/update/(:num)', 'StudentController::update/$1');
     $routes->post('/students/delete/(:num)', 'StudentController::delete/$1');
 
-    $routes->get('bills', 'BillsController::index');
-    $routes->get('bills/generate', 'BillsController::generate');
-    $routes->post('bills/generate', 'BillsController::generate');
-    $routes->get('bills/detail/(:num)', 'BillsController::detail/$1');
-    $routes->get('bills/print/(:num)', 'BillsController::print/$1');
+    $routes->get('/billing', 'BillsController::index');
+    $routes->post('/billing/generate', 'BillsController::generate');
+    $routes->get('/billing/detail/(:num)', 'BillsController::detail/$1');
+    $routes->get('billing/pdf/(:num)', 'BillsController::pdf/$1');
 
     $routes->get('payments', 'PaymentsController::index');
     $routes->get('payments/create', 'PaymentsController::create');

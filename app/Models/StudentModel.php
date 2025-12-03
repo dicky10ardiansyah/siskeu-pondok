@@ -8,6 +8,6 @@ class StudentModel extends Model
 {
     protected $table = 'students';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['name', 'nis', 'class'];
+    protected $allowedFields = ['name', 'nis', 'class', 'status', 'school_year'];
     protected $useTimestamps = true;
 }

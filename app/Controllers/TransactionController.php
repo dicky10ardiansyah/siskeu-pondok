@@ -55,9 +55,20 @@ class TransactionController extends BaseController
     // Form create transaksi
     public function create()
     {
-        // Ambil akun untuk dropdown
-        $data['accounts'] = $this->transactions->getAccounts();
-        return view('transactions/create', $data);
+        $allAccounts = $this->transactions->getAccounts();
+
+        $debitAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'expense']);
+        });
+
+        $creditAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'liability', 'equity', 'income']);
+        });
+
+        return view('transactions/create', [
+            'debitAccounts' => $debitAccounts,
+            'creditAccounts' => $creditAccounts,
+        ]);
     }
 
     // Simpan transaksi + jurnal otomatis
@@ -119,9 +130,22 @@ class TransactionController extends BaseController
     // Form edit transaksi
     public function edit($id)
     {
-        $data['transaction'] = $this->transactions->find($id);
-        $data['accounts'] = $this->transactions->getAccounts();
-        return view('transactions/edit', $data);
+        $transaction = $this->transactions->find($id);
+        $allAccounts = $this->transactions->getAccounts();
+
+        $debitAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'expense']);
+        });
+
+        $creditAccounts = array_filter($allAccounts, function ($acc) {
+            return in_array($acc['type'], ['asset', 'liability', 'equity', 'income']);
+        });
+
+        return view('transactions/edit', [
+            'transaction' => $transaction,
+            'debitAccounts' => $debitAccounts,
+            'creditAccounts' => $creditAccounts,
+        ]);
     }
 
     // Update transaksi + jurnal

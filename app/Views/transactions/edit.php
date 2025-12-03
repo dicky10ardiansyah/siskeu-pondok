@@ -72,16 +72,14 @@
                         <label for="debit_account_id">Akun Debit</label>
                         <select name="debit_account_id" id="debit_account_id" class="form-control <?= session('errors.debit_account_id') ? 'is-invalid' : '' ?>">
                             <option value="">-- Pilih Akun Debit --</option>
-                            <?php foreach ($accounts as $acc) : ?>
-                                <option value="<?= $acc['id'] ?>" <?= old('debit_account_id', $transaction['debit_account_id']) == $acc['id'] ? 'selected' : '' ?>>
+                            <?php foreach ($debitAccounts as $acc) : ?>
+                                <option value="<?= $acc['id'] ?>" <?= old('debit_account_id', isset($transaction) ? $transaction['debit_account_id'] : '') == $acc['id'] ? 'selected' : '' ?>>
                                     <?= $acc['code'] . ' - ' . $acc['name'] ?>
                                 </option>
                             <?php endforeach ?>
                         </select>
                         <?php if (session('errors.debit_account_id')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.debit_account_id') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.debit_account_id') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -90,16 +88,14 @@
                         <label for="credit_account_id">Akun Kredit</label>
                         <select name="credit_account_id" id="credit_account_id" class="form-control <?= session('errors.credit_account_id') ? 'is-invalid' : '' ?>">
                             <option value="">-- Pilih Akun Kredit --</option>
-                            <?php foreach ($accounts as $acc) : ?>
-                                <option value="<?= $acc['id'] ?>" <?= old('credit_account_id', $transaction['credit_account_id']) == $acc['id'] ? 'selected' : '' ?>>
+                            <?php foreach ($creditAccounts as $acc) : ?>
+                                <option value="<?= $acc['id'] ?>" <?= old('credit_account_id', isset($transaction) ? $transaction['credit_account_id'] : '') == $acc['id'] ? 'selected' : '' ?>>
                                     <?= $acc['code'] . ' - ' . $acc['name'] ?>
                                 </option>
                             <?php endforeach ?>
                         </select>
                         <?php if (session('errors.credit_account_id')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.credit_account_id') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.credit_account_id') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -111,9 +107,12 @@
     </div>
 </div>
 
-<!-- Currency formatting script -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Format angka
         const amountInput = document.getElementById('amount');
         const amountRaw = document.getElementById('amount_raw');
 
@@ -128,6 +127,24 @@
             amountRaw.value = raw;
             this.value = formatNumber(raw);
         });
+        amountInput.value = formatNumber(amountInput.value);
+
+        // Choices.js
+        new Choices('#debit_account_id', {
+            searchEnabled: true,
+            itemSelectText: '',
+            shouldSort: false,
+            placeholder: true,
+            placeholderValue: '-- Pilih Akun Debit --'
+        });
+        new Choices('#credit_account_id', {
+            searchEnabled: true,
+            itemSelectText: '',
+            shouldSort: false,
+            placeholder: true,
+            placeholderValue: '-- Pilih Akun Kredit --'
+        });
     });
 </script>
+
 <?= $this->endSection() ?>

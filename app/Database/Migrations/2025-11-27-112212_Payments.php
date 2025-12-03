@@ -20,7 +20,12 @@ class Payments extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
-            'account_id' => [
+            'debit_account_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
+            'credit_account_id' => [
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
@@ -43,12 +48,12 @@ class Payments extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
                 'null'       => true,
-            ], // misal: cash, transfer
+            ],
             'reference' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
                 'null'       => true,
-            ], // misal: nomor kwitansi, nomor transfer
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,
@@ -61,7 +66,8 @@ class Payments extends Migration
 
         $this->forge->addKey('id', true);
         $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('debit_account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('credit_account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('journal_id', 'journals', 'id', 'CASCADE', 'SET NULL');
         $this->forge->createTable('payments');
     }

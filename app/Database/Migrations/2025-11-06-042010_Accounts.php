@@ -16,7 +16,7 @@ class Accounts extends Migration
                 'auto_increment' => true,
             ],
             'code' => [
-                'type'       => 'VARCHAR', // misal: 101, 201, 301
+                'type'       => 'VARCHAR', // misal: ACCA001, ACCI001, ACCE001
                 'constraint' => '255',
             ],
             'name' => [

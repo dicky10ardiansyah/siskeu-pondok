@@ -52,9 +52,11 @@ class AccountController extends BaseController
     private function generateCode($type)
     {
         $prefix = [
-            'asset' => 'ACCA',
-            'income' => 'ACCI',
-            'expense' => 'ACCE'
+            'asset'     => 'ACCA',
+            'liability' => 'ACCL',
+            'equity'    => 'ACCEQ',
+            'income'    => 'ACCI',
+            'expense'   => 'ACCE'
         ];
 
         $codePrefix = $prefix[$type] ?? 'ACCX';
@@ -66,7 +68,7 @@ class AccountController extends BaseController
             ->first();
 
         if ($lastAccount) {
-            $lastNumber = (int)substr($lastAccount['code'], 4);
+            $lastNumber = (int)substr($lastAccount['code'], strlen($codePrefix));
             $nextNumber = $lastNumber + 1;
         } else {
             $nextNumber = 1;

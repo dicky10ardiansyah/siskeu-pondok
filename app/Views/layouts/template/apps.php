@@ -56,7 +56,7 @@
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
             <a href="<?= site_url('/') ?>" class="brand-link">
-                <img src="<?= base_url('templates') ?>/dist/img/blue-whale.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <img src="<?= base_url('templates') ?>/dist/img/budget.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
                 <span class="brand-text font-weight-light">FMIS</span>
             </a>
 
@@ -109,13 +109,13 @@
 
                             <li class="nav-item">
                                 <a href="<?= site_url('students') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'students' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-user-graduate"></i>
+                                    <i class="nav-icon fas fa-book"></i>
                                     <p>Siswa</p>
                                 </a>
                             </li>
 
                             <li class="nav-item">
-                                <a href="<?= site_url('bills') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'bills' ? 'active' : '' ?>">
+                                <a href="<?= site_url('billing') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'billing' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-receipt"></i>
                                     <p>Tagihan</p>
                                 </a>

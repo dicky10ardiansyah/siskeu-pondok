@@ -111,7 +111,7 @@
                         <td colspan="3" class="center">Total</td>
                         <td class="center"><?= number_format($data['totalDebit'], 2) ?></td>
                         <td class="center"><?= number_format($data['totalCredit'], 2) ?></td>
-                        <td></td>
+                        <td class="center"><?= number_format($data['totalBalance'], 2) ?></td>
                     </tr>
                 <?php else: ?>
                     <tr>

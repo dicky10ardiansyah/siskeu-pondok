@@ -18,25 +18,44 @@
                                 <th>#</th>
                                 <th>Kode Akun</th>
                                 <th>Nama Akun</th>
-                                <th>Tipe</th>
+                                <th>Debit</th>
+                                <th>Kredit</th>
                                 <th>Saldo</th>
                             </tr>
                         </thead>
                         <tbody>
+                            <?php $no = 1; ?>
                             <?php if (!empty($data)) : ?>
-                                <?php $no = 1; ?>
-                                <?php foreach ($data as $row) : ?>
-                                    <tr>
-                                        <td><?= $no++ ?></td>
-                                        <td><?= esc($row['account_code']) ?></td>
-                                        <td><?= esc($row['account_name']) ?></td>
-                                        <td><?= esc(ucfirst($row['type'])) ?></td>
-                                        <td><?= number_format($row['saldo'], 2, ',', '.') ?></td>
+                                <?php foreach ($data as $type => $accounts) : ?>
+                                    <!-- Header Tipe Akun -->
+                                    <tr class="table-primary">
+                                        <td colspan="6"><strong><?= ucfirst($type) ?></strong></td>
+                                    </tr>
+
+                                    <?php
+                                    $subtotal = 0;
+                                    foreach ($accounts as $acc) :
+                                        $subtotal += $acc['saldo'];
+                                    ?>
+                                        <tr>
+                                            <td><?= $no++ ?></td>
+                                            <td><?= esc($acc['code'] ?? '-') ?></td>
+                                            <td><?= esc($acc['name']) ?></td>
+                                            <td class="text-end"><?= number_format($acc['debit'], 2, ',', '.') ?></td>
+                                            <td class="text-end"><?= number_format($acc['credit'], 2, ',', '.') ?></td>
+                                            <td class="text-end"><?= number_format($acc['saldo'], 2, ',', '.') ?></td>
+                                        </tr>
+                                    <?php endforeach ?>
+
+                                    <!-- Subtotal per Tipe Akun -->
+                                    <tr class="table-secondary">
+                                        <td colspan="5" class="text-end"><strong>Subtotal <?= ucfirst($type) ?></strong></td>
+                                        <td class="text-end"><strong><?= number_format($subtotal, 2, ',', '.') ?></strong></td>
                                     </tr>
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada data laporan keuangan.</td>
+                                    <td colspan="6" class="text-center">Tidak ada data laporan keuangan.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>

@@ -7,15 +7,16 @@
     <div class="col">
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
-                <h5 class="mb-0">Daftar Kategori Pembayaran</h5>
+                <h5 class="mb-0">Tabel Kategori Pembayaran</h5>
                 <a href="<?= base_url('payment-categories/create') ?>" class="btn btn-primary ml-auto">
                     <i class="fas fa-plus"></i> Tambah Kategori
                 </a>
             </div>
 
             <div class="card-body">
+
                 <form action="<?= base_url('payment-categories') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari kategori..." value="<?= esc($search ?? '') ?>">
+                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama kategori..." value="<?= esc($search ?? '') ?>">
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -25,20 +26,24 @@
                             <tr>
                                 <th>#</th>
                                 <th>Nama Kategori</th>
-                                <th>Nominal Default</th>
+                                <th>Jumlah Default</th>
+                                <th>Tipe Tagihan</th>
+                                <th>Durasi (Bulan)</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (!empty($categories)) : ?>
+                            <?php if (!empty($paymentCategories)) : ?>
                                 <?php
-                                $no = 1 + (10 * ($pager->getCurrentPage('categories') - 1));
-                                foreach ($categories as $category) :
+                                $no = 1 + (10 * ($pager->getCurrentPage('payment_categories') - 1));
+                                foreach ($paymentCategories as $category) :
                                 ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td><?= esc($category['name']) ?></td>
-                                        <td><?= number_format($category['default_amount'], 2) ?></td>
+                                        <td><?= esc(number_format($category['default_amount'], 2)) ?></td>
+                                        <td><?= esc(ucfirst($category['billing_type'])) ?></td>
+                                        <td><?= esc($category['duration_months'] ?? '-') ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('payment-categories/edit/' . $category['id']) ?>" class="btn btn-sm btn-warning mr-2">
@@ -53,7 +58,7 @@
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="4" class="text-center">Tidak ada data kategori.</td>
+                                    <td colspan="6" class="text-center">Tidak ada data kategori pembayaran.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
@@ -64,7 +69,7 @@
                     <?= custom_pagination_with_query(
                         $pager,
                         ['q' => $search ?? ''],
-                        'categories',
+                        'payment_categories',
                         'bootstrap_full'
                     ) ?>
                 </div>
@@ -73,12 +78,12 @@
     </div>
 </div>
 
-<!-- SweetAlert2 konfirmasi hapus -->
+<!-- SweetAlert2 untuk konfirmasi hapus -->
 <script>
     function confirmDelete(id) {
         Swal.fire({
             title: 'Yakin ingin menghapus?',
-            text: "Kategori yang dihapus mungkin sudah ada tagihan!",
+            text: "Data kategori tidak dapat dikembalikan!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -104,7 +109,7 @@
     }
 </script>
 
-<!-- SweetAlert2 pesan sukses -->
+<!-- SweetAlert2 untuk pesan sukses -->
 <?php if (session()->getFlashdata('success')) : ?>
     <script>
         Swal.fire({

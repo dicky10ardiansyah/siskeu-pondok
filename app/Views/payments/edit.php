@@ -4,91 +4,206 @@
 
 <?= $this->section('content') ?>
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-md-6 offset-md-3">
         <div class="card">
             <div class="card-header">
-                <h5>Edit Pembayaran</h5>
+                <h5>Edit Data Pembayaran</h5>
             </div>
             <div class="card-body">
-                <form action="<?= base_url('payments/update/' . $payment['id']) ?>" method="post" id="paymentForm">
+                <form action="<?= base_url('payments/update/' . $payment['id']) ?>" method="post">
                     <?= csrf_field() ?>
 
+                    <!-- Student -->
                     <div class="form-group">
-                        <label for="student_id">Siswa</label>
-                        <select name="student_id" id="student_id" class="form-control" required>
-                            <option value="">-- Pilih Siswa --</option>
+                        <label for="student_id">Student</label>
+                        <select
+                            name="student_id"
+                            id="student_id"
+                            class="form-control <?= isset(session('errors')['student_id']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Student --</option>
+                            <?php $oldStudent = old('student_id', $payment['student_id']); ?>
                             <?php foreach ($students as $student) : ?>
-                                <option value="<?= $student['id'] ?>" <?= ($student['id'] == $payment['student_id']) ? 'selected' : '' ?>>
+                                <option value="<?= $student['id'] ?>" <?= $oldStudent == $student['id'] ? 'selected' : '' ?>>
                                     <?= esc($student['name']) ?>
-                                </option>
-                            <?php endforeach ?>
-                        </select>
-                        <?php if ($validation->hasError('student_id')) : ?>
-                            <small class="text-danger"><?= $validation->getError('student_id') ?></small>
-                        <?php endif ?>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="total_amount">Jumlah Bayar</label>
-                        <input type="number" name="total_amount" id="total_amount" class="form-control" step="0.01" value="<?= set_value('total_amount', $payment['total_amount']) ?>" required>
-                        <?php if ($validation->hasError('total_amount')) : ?>
-                            <small class="text-danger"><?= $validation->getError('total_amount') ?></small>
-                        <?php endif ?>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="date">Tanggal Pembayaran</label>
-                        <input type="date" name="date" id="date" class="form-control" value="<?= set_value('date', $payment['date']) ?>" required>
-                        <?php if ($validation->hasError('date')) : ?>
-                            <small class="text-danger"><?= $validation->getError('date') ?></small>
-                        <?php endif ?>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="method">Metode Pembayaran</label>
-                        <select name="method" id="method" class="form-control">
-                            <option value="cash" <?= ($payment['method'] == 'cash') ? 'selected' : '' ?>>Cash</option>
-                            <option value="transfer" <?= ($payment['method'] == 'transfer') ? 'selected' : '' ?>>Transfer</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="reference">Referensi</label>
-                        <input type="text" name="reference" id="reference" class="form-control" placeholder="Nomor kwitansi / transfer" value="<?= set_value('reference', $payment['reference']) ?>">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="account_id">Akun</label>
-                        <select name="account_id" class="form-control" required>
-                            <?php foreach ($accounts as $account): ?>
-                                <option value="<?= $account['id'] ?>" <?= set_select('account_id', $account['id']) ?>>
-                                    <?= esc($account['name']) ?> (<?= esc($account['type']) ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (isset(session('errors')['student_id'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['student_id'] ?></div>
+                        <?php endif; ?>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                    <a href="<?= base_url('payments') ?>" class="btn btn-secondary">Batal</a>
+                    <!-- Debit Account -->
+                    <div class="form-group">
+                        <label for="debit_account_id">Debit Account</label>
+                        <select name="debit_account_id" id="debit_account_id" class="form-control <?= isset(session('errors')['debit_account_id']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Debit Account --</option>
+                            <?php $oldDebit = old('debit_account_id', $payment['debit_account_id']); ?>
+                            <?php foreach ($debitAccounts as $account) : ?>
+                                <option value="<?= $account['id'] ?>" <?= $oldDebit == $account['id'] ? 'selected' : '' ?>>
+                                    <?= esc($account['name']) ?> (<?= esc($account['code']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (isset(session('errors')['debit_account_id'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['debit_account_id'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Credit Account -->
+                    <div class="form-group">
+                        <label for="credit_account_id">Credit Account</label>
+                        <select name="credit_account_id" id="credit_account_id" class="form-control <?= isset(session('errors')['credit_account_id']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Credit Account --</option>
+                            <?php $oldCredit = old('credit_account_id', $payment['credit_account_id']); ?>
+                            <?php foreach ($creditAccounts as $account) : ?>
+                                <option value="<?= $account['id'] ?>" <?= $oldCredit == $account['id'] ? 'selected' : '' ?>>
+                                    <?= esc($account['name']) ?> (<?= esc($account['code']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (isset(session('errors')['credit_account_id'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['credit_account_id'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Jumlah -->
+                    <div class="form-group">
+                        <label for="total_amount">Jumlah</label>
+                        <?php
+                        $rawAmount = (int) old('total_amount', $payment['total_amount']);
+                        ?>
+                        <input
+                            type="text"
+                            class="form-control <?= isset(session('errors')['total_amount']) ? 'is-invalid' : '' ?>"
+                            name="total_amount"
+                            id="total_amount"
+                            value="<?= number_format($rawAmount, 0, ',', '.') ?>"
+                            data-raw="<?= $rawAmount ?>"
+                            placeholder="Masukkan jumlah pembayaran">
+                        <?php if (isset(session('errors')['total_amount'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['total_amount'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Tanggal -->
+                    <div class="form-group">
+                        <label for="date">Tanggal</label>
+                        <input
+                            type="date"
+                            class="form-control <?= isset(session('errors')['date']) ? 'is-invalid' : '' ?>"
+                            name="date"
+                            id="date"
+                            value="<?= old('date', $payment['date']) ?>">
+                        <?php if (isset(session('errors')['date'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['date'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Metode -->
+                    <div class="form-group">
+                        <label for="method">Metode</label>
+                        <select
+                            name="method"
+                            id="method"
+                            class="form-control <?= isset(session('errors')['method']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Metode --</option>
+                            <?php $oldMethod = old('method', $payment['method']); ?>
+                            <option value="cash" <?= $oldMethod === 'cash' ? 'selected' : '' ?>>Cash</option>
+                            <option value="transfer" <?= $oldMethod === 'transfer' ? 'selected' : '' ?>>Transfer</option>
+                        </select>
+                        <?php if (isset(session('errors')['method'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['method'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Referensi -->
+                    <div class="form-group">
+                        <label for="reference">Referensi</label>
+                        <input
+                            type="text"
+                            class="form-control <?= isset(session('errors')['reference']) ? 'is-invalid' : '' ?>"
+                            name="reference"
+                            id="reference"
+                            value="<?= old('reference', $payment['reference']) ?>"
+                            placeholder="Nomor kwitansi / transfer">
+                        <?php if (isset(session('errors')['reference'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['reference'] ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update
+                        </button>
+                        <a href="<?= base_url('payments') ?>" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Batal
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- SweetAlert2 pesan sukses -->
-<?php if (session()->getFlashdata('success')) : ?>
-    <script>
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: '<?= session()->getFlashdata('success') ?>',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
+<!-- Choices.js -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Choices.js
+        new Choices('#student_id', {
+            searchPlaceholderValue: 'Cari student...',
+            shouldSort: false
         });
-    </script>
-<?php endif ?>
+        new Choices('#debit_account_id', {
+            searchPlaceholderValue: 'Cari debit account...',
+            shouldSort: false
+        });
+        new Choices('#credit_account_id', {
+            searchPlaceholderValue: 'Cari credit account...',
+            shouldSort: false
+        });
+
+        // Input jumlah realtime dengan pemisah ribuan
+        const totalAmount = document.getElementById('total_amount');
+
+        function formatNumber(value) {
+            if (!value) return '';
+            return value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function setCursorPosition(el, oldPos, oldLength, newLength) {
+            let newPos = oldPos + (newLength - oldLength);
+            if (newPos > newLength) newPos = newLength;
+            el.setSelectionRange(newPos, newPos);
+        }
+
+        // Inisialisasi value dari server
+        let rawInit = totalAmount.getAttribute('data-raw'); // angka murni
+        totalAmount.dataset.raw = rawInit;
+        totalAmount.value = formatNumber(rawInit);
+
+        totalAmount.addEventListener('input', function() {
+            const oldValue = totalAmount.value;
+            const oldLength = oldValue.length;
+            const cursorPosition = totalAmount.selectionStart;
+
+            const rawValue = oldValue.replace(/[^0-9]/g, '');
+            totalAmount.dataset.raw = rawValue;
+
+            const formattedValue = formatNumber(rawValue);
+            totalAmount.value = formattedValue;
+
+            setCursorPosition(totalAmount, cursorPosition, oldLength, formattedValue.length);
+        });
+
+        // Submit: kirim value murni
+        totalAmount.form.addEventListener('submit', function() {
+            totalAmount.value = totalAmount.dataset.raw;
+        });
+    });
+</script>
 
 <?= $this->endSection() ?>

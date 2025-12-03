@@ -67,10 +67,12 @@ class LedgerController extends BaseController
                 $totalCredit += $entry['credit'];
             }
 
+            // Tambahkan totalBalance di sini
             $ledger[$account['name']] = [
                 'entries' => $entries,
                 'totalDebit' => $totalDebit,
                 'totalCredit' => $totalCredit,
+                'totalBalance' => $balance, // saldo akhir akun
             ];
         }
 
@@ -133,8 +135,12 @@ class LedgerController extends BaseController
         $row = 1;
 
         foreach ($ledger as $accountName => $data) {
+            // Nama akun
             $sheet->setCellValue('A' . $row, $accountName);
+            $sheet->mergeCells("A{$row}:F{$row}");
             $row++;
+
+            // Header tabel
             $sheet->setCellValue('A' . $row, '#');
             $sheet->setCellValue('B' . $row, 'Tanggal');
             $sheet->setCellValue('C' . $row, 'Deskripsi');
@@ -154,9 +160,11 @@ class LedgerController extends BaseController
                 $row++;
             }
 
+            // Baris total
             $sheet->setCellValue('C' . $row, 'Total');
             $sheet->setCellValue('D' . $row, $data['totalDebit']);
             $sheet->setCellValue('E' . $row, $data['totalCredit']);
+            $sheet->setCellValue('F' . $row, $data['totalBalance']); // saldo akhir
             $row += 2;
         }
 

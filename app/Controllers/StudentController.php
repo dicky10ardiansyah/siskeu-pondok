@@ -26,15 +26,11 @@ class StudentController extends BaseController
                 ->orLike('nis', $keyword);
         }
 
-        // paginate(5, 'students') → 5 record per page, group pagination 'students'
         $data['students'] = $studentsModel
             ->orderBy('id', 'DESC')
             ->paginate(5, 'students');
 
-        // pager untuk view
         $data['pager'] = $this->studentModel->pager;
-
-        // kirim keyword supaya tetap di form search
         $data['keyword'] = $keyword;
 
         return view('students/index', $data);
@@ -63,6 +59,14 @@ class StudentController extends BaseController
             'class' => [
                 'rules'  => 'permit_empty',
                 'label'  => 'Kelas',
+            ],
+            'school_year' => [
+                'rules'  => 'permit_empty|integer|exact_length[4]',
+                'label'  => 'Tahun Lulus',
+            ],
+            'status' => [
+                'rules'  => 'permit_empty|in_list[0,1]',
+                'label'  => 'Status Lulus',
             ]
         ];
 
@@ -70,14 +74,17 @@ class StudentController extends BaseController
             return redirect()->back()->withInput()->with('errors', $validation->getErrors());
         }
 
-        // ubah empty string ke NULL agar tidak bentrok unique
         $nis = $this->request->getVar('nis');
         $nis = $nis === '' ? null : $nis;
 
+        $status = $this->request->getVar('status') ? 1 : 0;
+
         $this->studentModel->save([
-            'name'  => $this->request->getVar('name'),
-            'nis'   => $nis,
-            'class' => $this->request->getVar('class'),
+            'name'        => $this->request->getVar('name'),
+            'nis'         => $nis,
+            'class'       => $this->request->getVar('class'),
+            'status'      => $status,
+            'school_year' => $this->request->getVar('school_year') ?: null,
         ]);
 
         return redirect()->to('/students')->with('success', 'Data siswa berhasil ditambahkan');
@@ -106,13 +113,20 @@ class StudentController extends BaseController
                 'label'  => 'Nama',
             ],
             'nis' => [
-                // abaikan id sekarang supaya tidak dianggap duplikasi
                 'rules'  => "permit_empty|is_unique[students.nis,id,{$id}]",
                 'label'  => 'NIS',
             ],
             'class' => [
                 'rules'  => 'permit_empty',
                 'label'  => 'Kelas',
+            ],
+            'school_year' => [
+                'rules'  => 'permit_empty|integer|exact_length[4]',
+                'label'  => 'Tahun Lulus',
+            ],
+            'status' => [
+                'rules'  => 'permit_empty|in_list[0,1]',
+                'label'  => 'Status Lulus',
             ]
         ];
 
@@ -120,14 +134,17 @@ class StudentController extends BaseController
             return redirect()->back()->withInput()->with('errors', $validation->getErrors());
         }
 
-        // ubah empty string ke NULL agar tidak bentrok unique
         $nis = $this->request->getVar('nis');
         $nis = $nis === '' ? null : $nis;
 
+        $status = $this->request->getVar('status') ? 1 : 0;
+
         $this->studentModel->update($id, [
-            'name'  => $this->request->getVar('name'),
-            'nis'   => $nis,
-            'class' => $this->request->getVar('class'),
+            'name'        => $this->request->getVar('name'),
+            'nis'         => $nis,
+            'class'       => $this->request->getVar('class'),
+            'status'      => $status,
+            'school_year' => $this->request->getVar('school_year') ?: null,
         ]);
 
         return redirect()->to('/students')->with('success', 'Data siswa berhasil diupdate');

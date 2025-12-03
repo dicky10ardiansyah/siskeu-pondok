@@ -24,6 +24,15 @@ class PaymentCategories extends Migration
                 'constraint' => '10,2',
                 'null'       => true,
             ],
+            'billing_type' => [
+                'type' => 'ENUM',
+                'constraint' => ['monthly', 'one-time'],
+                'default' => 'monthly'
+            ],
+            'duration_months' => [
+                'type' => 'TINYINT',
+                'null' => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

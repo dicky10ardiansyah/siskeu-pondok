@@ -7,14 +7,13 @@
     <div class="col">
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
-                <h5 class="mb-0">Daftar Pembayaran</h5>
-
+                <h5 class="mb-0">Tabel Pembayaran</h5>
                 <div class="ml-auto">
                     <a href="<?= base_url('payments/create') ?>" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Tambah Pembayaran
                     </a>
                     <a href="<?= base_url('payment-categories') ?>" class="btn btn-outline-primary">
-                        <i class="fas fa-list"></i> Kategori
+                        <i class="fas fa-list"></i> Kategori Pembayaran
                     </a>
                 </div>
             </div>
@@ -22,7 +21,7 @@
             <div class="card-body">
 
                 <form action="<?= base_url('payments') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="search" class="form-control mr-2" placeholder="Cari nama siswa / tanggal / metode..." value="<?= esc($search ?? '') ?>">
+                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari referensi/metode..." value="<?= esc($search ?? '') ?>">
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -31,9 +30,11 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th>#</th>
-                                <th>Nama Siswa</th>
-                                <th>Tanggal</th>
+                                <th>Student</th>
+                                <th>Debit Account</th>
+                                <th>Credit Account</th>
                                 <th>Jumlah</th>
+                                <th>Tanggal</th>
                                 <th>Metode</th>
                                 <th>Referensi</th>
                                 <th>Aksi</th>
@@ -47,9 +48,11 @@
                                 ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= esc($payment['student_name']) ?></td>
-                                        <td><?= esc($payment['date']) ?></td>
+                                        <td><?= esc($payment['student_name'] ?? '-') ?></td>
+                                        <td><?= esc($payment['debit_account_name'] ?? '-') ?></td>
+                                        <td><?= esc($payment['credit_account_name'] ?? '-') ?></td>
                                         <td><?= number_format($payment['total_amount'], 2) ?></td>
+                                        <td><?= date('d M Y', strtotime($payment['date'])) ?></td>
                                         <td><?= esc($payment['method'] ?? '-') ?></td>
                                         <td><?= esc($payment['reference'] ?? '-') ?></td>
                                         <td>
@@ -66,7 +69,7 @@
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="7" class="text-center">Tidak ada data pembayaran.</td>
+                                    <td colspan="9" class="text-center">Tidak ada data pembayaran.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
@@ -76,7 +79,7 @@
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['search' => $search ?? ''],
+                        ['q' => $search ?? ''],
                         'payments',
                         'bootstrap_full'
                     ) ?>
@@ -86,12 +89,12 @@
     </div>
 </div>
 
-<!-- SweetAlert2 konfirmasi hapus -->
+<!-- SweetAlert2 untuk konfirmasi hapus -->
 <script>
     function confirmDelete(id) {
         Swal.fire({
             title: 'Yakin ingin menghapus?',
-            text: "Pembayaran akan dibatalkan dan tagihan dikembalikan.",
+            text: "Data pembayaran tidak dapat dikembalikan!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -117,7 +120,7 @@
     }
 </script>
 
-<!-- SweetAlert2 pesan sukses -->
+<!-- SweetAlert2 untuk pesan sukses -->
 <?php if (session()->getFlashdata('success')) : ?>
     <script>
         Swal.fire({

@@ -13,149 +13,166 @@ class FinancialStatementController extends BaseController
 {
     protected $accountsModel;
     protected $journalEntriesModel;
-    protected $journalsModel;
-    protected $transactionsModel;
 
     public function __construct()
     {
         $this->accountsModel = new AccountModel();
         $this->journalEntriesModel = new JournalEntryModel();
-        $this->journalsModel = new JournalModel();
-        $this->transactionsModel = new TransactionModel();
     }
 
     /**
-     * Laporan keuangan lengkap
+     * Laporan Keuangan Lengkap
      */
     public function index()
     {
         $accounts = $this->accountsModel->findAll();
 
-        $data = [];
-        foreach ($accounts as $account) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $account['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $account['id'])->first()['credit'];
+        // Ambil semua jurnal entries, group by account_id
+        $allJournal = $this->journalEntriesModel
+            ->select('account_id, SUM(debit) AS debit, SUM(credit) AS credit')
+            ->groupBy('account_id')
+            ->findAll();
 
-            $data[] = [
-                'account_name' => $account['name'],
-                'account_code' => $account['code'],
-                'type' => $account['type'],
-                'saldo' => ($debit ?? 0) - ($credit ?? 0)
+        $journalMap = [];
+        foreach ($allJournal as $row) {
+            $journalMap[$row['account_id']] = [
+                'debit' => (float)$row['debit'],
+                'credit' => (float)$row['credit'],
             ];
         }
 
-        return view('financial_statement/index', ['data' => $data]);
+        $groupedData = [];
+        foreach ($accounts as $acc) {
+            $debit = $journalMap[$acc['id']]['debit'] ?? 0;
+            $credit = $journalMap[$acc['id']]['credit'] ?? 0;
+
+            // Hitung saldo sesuai tipe akun
+            $saldo = 0;
+            switch ($acc['type']) {
+                case 'asset':
+                    $saldo = $debit - $credit;
+                    break;
+                case 'liability':
+                case 'equity':
+                    $saldo = $credit - $debit;
+                    break;
+                case 'income':
+                    $saldo = $credit;
+                    break;
+                case 'expense':
+                    $saldo = $debit;
+                    break;
+            }
+
+            $groupedData[$acc['type']][] = [
+                'code' => $acc['code'],
+                'name' => $acc['name'],
+                'debit' => $debit,
+                'credit' => $credit,
+                'saldo' => $saldo
+            ];
+        }
+
+        return view('financial_statement/index', ['data' => $groupedData]);
     }
 
     /**
-     * Laporan Neraca (Balance Sheet)
+     * Neraca (Balance Sheet)
      */
     public function neraca()
     {
-        // Aset
-        $assets = $this->accountsModel->where('type', 'asset')->findAll();
-        $dataAssets = [];
-        $totalAssets = 0;
-        foreach ($assets as $asset) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $asset['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $asset['id'])->first()['credit'];
-            $saldo = ($debit ?? 0) - ($credit ?? 0);
-            $totalAssets += $saldo;
+        $accounts = $this->accountsModel->findAll();
 
-            $dataAssets[] = [
-                'account_name' => $asset['name'],
-                'saldo' => $saldo
-            ];
-        }
+        $assets = $liabilities = $equities = [];
+        $total_assets = $total_liabilities = $total_equities = 0;
 
-        // Kewajiban
-        $liabilities = $this->accountsModel->where('type', 'liability')->findAll();
-        $dataLiabilities = [];
-        $totalLiabilities = 0;
-        foreach ($liabilities as $liability) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $liability['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $liability['id'])->first()['credit'];
-            $saldo = ($credit ?? 0) - ($debit ?? 0); // kewajiban biasanya kredit bertambah
-            $totalLiabilities += $saldo;
+        foreach ($accounts as $acc) {
+            $debit = (float)($this->journalEntriesModel->selectSum('debit')->where('account_id', $acc['id'])->first()['debit'] ?? 0);
+            $credit = (float)($this->journalEntriesModel->selectSum('credit')->where('account_id', $acc['id'])->first()['credit'] ?? 0);
 
-            $dataLiabilities[] = [
-                'account_name' => $liability['name'],
-                'saldo' => $saldo
-            ];
-        }
-
-        // Ekuitas
-        $equities = $this->accountsModel->where('type', 'equity')->findAll();
-        $dataEquities = [];
-        $totalEquities = 0;
-        foreach ($equities as $equity) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $equity['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $equity['id'])->first()['credit'];
-            $saldo = ($credit ?? 0) - ($debit ?? 0);
-            $totalEquities += $saldo;
-
-            $dataEquities[] = [
-                'account_name' => $equity['name'],
-                'saldo' => $saldo
-            ];
+            switch ($acc['type']) {
+                case 'asset':
+                    $saldo = $debit - $credit;
+                    $assets[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
+                    $total_assets += $saldo;
+                    break;
+                case 'liability':
+                    $saldo = $credit - $debit;
+                    $liabilities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
+                    $total_liabilities += $saldo;
+                    break;
+                case 'equity':
+                    $saldo = $credit - $debit;
+                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
+                    $total_equities += $saldo;
+                    break;
+                case 'income':
+                    $saldo = $credit;
+                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
+                    $total_equities += $saldo;
+                    break;
+                case 'expense':
+                    $saldo = $debit;
+                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => -$saldo];
+                    $total_equities -= $saldo;
+                    break;
+            }
         }
 
         return view('financial_statement/neraca', [
-            'assets' => $dataAssets,
-            'total_assets' => $totalAssets,
-            'liabilities' => $dataLiabilities,
-            'total_liabilities' => $totalLiabilities,
-            'equities' => $dataEquities,
-            'total_equities' => $totalEquities,
-            'total_liabilities_equities' => $totalLiabilities + $totalEquities
+            'assets' => $assets,
+            'total_assets' => $total_assets,
+            'liabilities' => $liabilities,
+            'total_liabilities' => $total_liabilities,
+            'equities' => $equities,
+            'total_equities' => $total_equities,
+            'total_liabilities_equities' => $total_liabilities + $total_equities
         ]);
     }
 
     /**
-     * Laporan Laba Rugi (Income Statement)
+     * Laporan Laba Rugi
      */
     public function labaRugi()
     {
-        $incomeAccounts = $this->accountsModel->where('type', 'income')->findAll();
-        $expenseAccounts = $this->accountsModel->where('type', 'expense')->findAll();
+        $accounts = $this->accountsModel->findAll();
 
-        $totalIncome = 0;
-        $totalExpense = 0;
+        $allJournal = $this->journalEntriesModel
+            ->select('account_id, SUM(debit) AS debit, SUM(credit) AS credit')
+            ->groupBy('account_id')
+            ->findAll();
 
-        $incomeData = [];
-        foreach ($incomeAccounts as $acc) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $acc['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $acc['id'])->first()['credit'];
-            $saldo = ($credit ?? 0) - ($debit ?? 0); // income biasanya kredit bertambah
-            $totalIncome += $saldo;
-
-            $incomeData[] = [
-                'account_name' => $acc['name'],
-                'saldo' => $saldo
-            ];
+        $journalMap = [];
+        foreach ($allJournal as $row) {
+            $journalMap[$row['account_id']] = ['debit' => (float)$row['debit'], 'credit' => (float)$row['credit']];
         }
 
-        $expenseData = [];
-        foreach ($expenseAccounts as $acc) {
-            $debit = $this->journalEntriesModel->selectSum('debit')->where('account_id', $acc['id'])->first()['debit'];
-            $credit = $this->journalEntriesModel->selectSum('credit')->where('account_id', $acc['id'])->first()['credit'];
-            $saldo = ($debit ?? 0) - ($credit ?? 0); // expense biasanya debit bertambah
-            $totalExpense += $saldo;
+        $income = $expense = [];
+        $total_income = $total_expense = 0;
 
-            $expenseData[] = [
-                'account_name' => $acc['name'],
-                'saldo' => $saldo
-            ];
+        foreach ($accounts as $acc) {
+            $debit = $journalMap[$acc['id']]['debit'] ?? 0;
+            $credit = $journalMap[$acc['id']]['credit'] ?? 0;
+
+            if ($acc['type'] == 'income') {
+                $saldo = $credit;
+                $income[] = ['account_name' => $acc['name'], 'saldo' => $saldo];
+                $total_income += $saldo;
+            } elseif ($acc['type'] == 'expense') {
+                $saldo = $debit;
+                $expense[] = ['account_name' => $acc['name'], 'saldo' => $saldo];
+                $total_expense += $saldo;
+            }
         }
 
-        $netProfit = $totalIncome - $totalExpense;
+        $net_profit = $total_income - $total_expense;
 
         return view('financial_statement/laba_rugi', [
-            'income' => $incomeData,
-            'total_income' => $totalIncome,
-            'expense' => $expenseData,
-            'total_expense' => $totalExpense,
-            'net_profit' => $netProfit
+            'income' => $income,
+            'total_income' => $total_income,
+            'expense' => $expense,
+            'total_expense' => $total_expense,
+            'net_profit' => $net_profit
         ]);
     }
 }
