@@ -39,28 +39,48 @@ function tanggalIndonesia($date)
 
                 <!-- Summary Card -->
                 <div class="row mb-4">
-                    <div class="col-md-4 mb-2">
-                        <div class="card bg-info">
-                            <div class="card-body text-white text-center">
-                                <h6>Total Tagihan</h6>
-                                <p class="fs-4"><?= number_format($totalBills, 0, ',', '.') ?></p>
+                    <div class="col-lg-4 col-12 mb-2">
+                        <div class="small-box bg-info">
+                            <div class="inner">
+                                <h3>Rp <?= number_format($totalBills, 0, ',', '.') ?></h3>
+                                <p>Total Tagihan</p>
                             </div>
+                            <div class="icon">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </div>
+                            <a href="#" class="small-box-footer">
+                                Detail <i class="fas fa-arrow-circle-right"></i>
+                            </a>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-2">
-                        <div class="card bg-success">
-                            <div class="card-body text-white text-center">
-                                <h6>Total Pembayaran</h6>
-                                <p class="fs-4"><?= number_format($totalPayments, 0, ',', '.') ?></p>
+
+                    <div class="col-lg-4 col-12 mb-2">
+                        <div class="small-box bg-success">
+                            <div class="inner">
+                                <h3>Rp <?= number_format($totalPayments, 0, ',', '.') ?></h3>
+                                <p>Total Pembayaran</p>
                             </div>
+                            <div class="icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <a href="#" class="small-box-footer">
+                                Detail <i class="fas fa-arrow-circle-right"></i>
+                            </a>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-2">
-                        <div class="card bg-warning">
-                            <div class="card-body text-dark text-center">
-                                <h6>Harus Dibayar Sekarang</h6>
-                                <p class="fs-4"><?= number_format($amountDueNow, 0, ',', '.') ?></p>
+
+                    <div class="col-lg-4 col-12 mb-2">
+                        <div class="small-box bg-warning">
+                            <div class="inner">
+                                <h3>Rp <?= number_format($amountDueNow, 0, ',', '.') ?></h3>
+                                <p>Harus Dibayar Sekarang</p>
                             </div>
+                            <div class="icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <a href="#" class="small-box-footer">
+                                Bayar Sekarang <i class="fas fa-arrow-circle-right"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -96,12 +116,9 @@ function tanggalIndonesia($date)
                                                 <br><small class="text-muted">
                                                     Dibayar dari:
                                                     <?php foreach ($bill['payment_breakdown'] as $p): ?>
-                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['date']) ?>),
+                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['created_at']) ?>),
                                                     <?php endforeach; ?>
                                                 </small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($bill['partial_reason'])): ?>
-                                                <br><small class="text-danger"><?= $bill['partial_reason'] ?></small>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

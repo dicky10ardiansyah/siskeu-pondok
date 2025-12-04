@@ -32,8 +32,7 @@
                     <div class="form-group">
                         <label for="default_amount">Jumlah Default</label>
                         <input
-                            type="number"
-                            step="0.01"
+                            type="text"
                             class="form-control <?= isset(session('errors')['default_amount']) ? 'is-invalid' : '' ?>"
                             name="default_amount"
                             id="default_amount"
@@ -93,4 +92,35 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('default_amount');
+
+        input.addEventListener('input', function(e) {
+            let value = e.target.value;
+
+            // Hapus semua karakter kecuali angka dan titik
+            let numericValue = value.replace(/[^0-9.]/g, '');
+
+            // Pastikan hanya satu titik desimal
+            const parts = numericValue.split('.');
+            if (parts.length > 2) numericValue = parts[0] + '.' + parts[1];
+
+            // Simpan nilai murni
+            e.target.dataset.value = numericValue;
+
+            // Format dengan ribuan
+            let [integer, decimal] = numericValue.split('.');
+            integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            e.target.value = decimal !== undefined ? integer + '.' + decimal : integer;
+        });
+
+        // Saat form dikirim, kembalikan ke angka murni
+        input.form.addEventListener('submit', function() {
+            input.value = input.dataset.value || '';
+        });
+    });
+</script>
+
 <?= $this->endSection() ?>

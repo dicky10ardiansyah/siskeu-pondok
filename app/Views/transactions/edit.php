@@ -10,7 +10,7 @@
                 <h5>Edit Transaksi</h5>
             </div>
             <div class="card-body">
-                <form action="/transactions/update/<?= $transaction['id'] ?>" method="post">
+                <form action="/transactions/update/<?= $transaction['id'] ?>" method="post" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <input type="hidden" name="_method" value="PUT">
 
@@ -19,9 +19,7 @@
                         <label for="date">Tanggal</label>
                         <input type="date" class="form-control <?= session('errors.date') ? 'is-invalid' : '' ?>" name="date" id="date" value="<?= old('date', $transaction['date']) ?>">
                         <?php if (session('errors.date')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.date') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.date') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -30,9 +28,7 @@
                         <label for="description">Deskripsi</label>
                         <input type="text" class="form-control <?= session('errors.description') ? 'is-invalid' : '' ?>" name="description" id="description" value="<?= old('description', $transaction['description']) ?>">
                         <?php if (session('errors.description')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.description') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.description') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -45,9 +41,7 @@
                             <option value="expense" <?= old('type', $transaction['type']) === 'expense' ? 'selected' : '' ?>>Expense</option>
                         </select>
                         <?php if (session('errors.type')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.type') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.type') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -61,9 +55,7 @@
                         <input type="hidden" name="amount" id="amount_raw" value="<?= old('amount', $transaction['amount']) ?>">
 
                         <?php if (session('errors.amount')) : ?>
-                            <div class="invalid-feedback">
-                                <?= session('errors.amount') ?>
-                            </div>
+                            <div class="invalid-feedback"><?= session('errors.amount') ?></div>
                         <?php endif ?>
                     </div>
 
@@ -73,7 +65,7 @@
                         <select name="debit_account_id" id="debit_account_id" class="form-control <?= session('errors.debit_account_id') ? 'is-invalid' : '' ?>">
                             <option value="">-- Pilih Akun Debit --</option>
                             <?php foreach ($debitAccounts as $acc) : ?>
-                                <option value="<?= $acc['id'] ?>" <?= old('debit_account_id', isset($transaction) ? $transaction['debit_account_id'] : '') == $acc['id'] ? 'selected' : '' ?>>
+                                <option value="<?= $acc['id'] ?>" <?= old('debit_account_id', $transaction['debit_account_id']) == $acc['id'] ? 'selected' : '' ?>>
                                     <?= $acc['code'] . ' - ' . $acc['name'] ?>
                                 </option>
                             <?php endforeach ?>
@@ -89,13 +81,25 @@
                         <select name="credit_account_id" id="credit_account_id" class="form-control <?= session('errors.credit_account_id') ? 'is-invalid' : '' ?>">
                             <option value="">-- Pilih Akun Kredit --</option>
                             <?php foreach ($creditAccounts as $acc) : ?>
-                                <option value="<?= $acc['id'] ?>" <?= old('credit_account_id', isset($transaction) ? $transaction['credit_account_id'] : '') == $acc['id'] ? 'selected' : '' ?>>
+                                <option value="<?= $acc['id'] ?>" <?= old('credit_account_id', $transaction['credit_account_id']) == $acc['id'] ? 'selected' : '' ?>>
                                     <?= $acc['code'] . ' - ' . $acc['name'] ?>
                                 </option>
                             <?php endforeach ?>
                         </select>
                         <?php if (session('errors.credit_account_id')) : ?>
                             <div class="invalid-feedback"><?= session('errors.credit_account_id') ?></div>
+                        <?php endif ?>
+                    </div>
+
+                    <!-- Bukti Upload (opsional) -->
+                    <div class="form-group">
+                        <label for="proof">Bukti (Gambar / PDF)</label>
+                        <input type="file" name="proof" id="proof" class="form-control <?= session('errors.proof') ? 'is-invalid' : '' ?>">
+                        <?php if (!empty($transaction['proof'])) : ?>
+                            <small>File saat ini: <a href="<?= base_url($transaction['proof']) ?>" target="_blank"><?= basename($transaction['proof']) ?></a></small>
+                        <?php endif ?>
+                        <?php if (session('errors.proof')) : ?>
+                            <div class="invalid-feedback"><?= session('errors.proof') ?></div>
                         <?php endif ?>
                     </div>
 

@@ -109,8 +109,15 @@
 
                             <li class="nav-item">
                                 <a href="<?= site_url('students') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'students' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-book"></i>
+                                    <i class="nav-icon fas fa-user-graduate"></i>
                                     <p>Siswa</p>
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="<?= site_url('graduates') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'graduates' ? 'active' : '' ?>">
+                                    <i class="nav-icon fas fa-graduation-cap"></i>
+                                    <p>Lulus</p>
                                 </a>
                             </li>
 

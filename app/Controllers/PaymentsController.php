@@ -67,21 +67,30 @@ class PaymentsController extends BaseController
     // --------------------------------------------------
     public function create()
     {
+        // Ambil student_id dari query string (misal dari tombol "Cek/Bayar")
+        $selectedStudentId = $this->request->getGet('student_id');
+
+        // Ambil semua siswa
         $data['students'] = $this->studentModel->findAll();
+        $data['selectedStudentId'] = $selectedStudentId;
+
+        // Ambil semua akun
         $allAccounts = $this->accountModel->findAll();
 
-        // Filter untuk debit only (asset, expense)
+        // Filter debit accounts (asset, expense)
         $data['debitAccounts'] = array_filter($allAccounts, function ($acc) {
             return in_array($acc['type'], ['asset', 'expense']);
         });
 
-        // Filter untuk credit only (liability, equity, income)
+        // Filter credit accounts (liability, equity, income)
         $data['creditAccounts'] = array_filter($allAccounts, function ($acc) {
             return in_array($acc['type'], ['liability', 'equity', 'income']);
         });
 
+        // Ambil semua journals (opsional)
         $data['journals'] = $this->journalModel->findAll();
 
+        // Load view create payment
         return view('payments/create', $data);
     }
 
@@ -97,7 +106,8 @@ class PaymentsController extends BaseController
             'total_amount'     => 'required|decimal',
             'date'             => 'required',
             'method'           => 'permit_empty|string',
-            'reference'        => 'permit_empty|string'
+            'reference'        => 'permit_empty|string',
+            'reference_file'   => 'permit_empty|uploaded[reference_file]|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
         ];
 
         if (!$this->validate($validationRules)) {
@@ -114,43 +124,43 @@ class PaymentsController extends BaseController
             'reference'        => $this->request->getPost('reference'),
         ];
 
-        // Simpan payment
+        // Upload file referensi jika ada
+        $file = $this->request->getFile('reference_file');
+        if ($file && $file->isValid() && !$file->hasMoved()) {
+            $newName = $file->getRandomName();
+            $file->move(ROOTPATH . 'public/uploads', $newName);  // simpan di public/uploads
+            $paymentData['reference_file'] = $newName;
+        }
+
         $this->paymentModel->save($paymentData);
         $paymentId = $this->paymentModel->getInsertID();
 
-        // Ambil student
+        // Buat jurnal
         $student = $this->studentModel->find($paymentData['student_id']);
         $refText = $paymentData['reference'] ? " - Ref: {$paymentData['reference']}" : "";
         $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
-
-        // Buat jurnal
         $journalId = $this->journalModel->insert([
-            'date'        => $paymentData['date'],
+            'date' => $paymentData['date'],
             'description' => $description,
-            'user_id'     => session()->get('user_id') ?? null,
+            'user_id' => session()->get('user_id') ?? null,
         ]);
-
-        // Update payment dengan journal_id
         $this->paymentModel->update($paymentId, ['journal_id' => $journalId]);
 
-        // Buat journal entries
+        // Journal entries
         $journalEntryModel = new \App\Models\JournalEntryModel();
         $journalEntryModel->insert([
             'journal_id' => $journalId,
             'account_id' => $paymentData['debit_account_id'],
-            'debit'      => $paymentData['total_amount'],
-            'credit'     => 0,
+            'debit' => $paymentData['total_amount'],
+            'credit' => 0,
         ]);
         $journalEntryModel->insert([
             'journal_id' => $journalId,
             'account_id' => $paymentData['credit_account_id'],
-            'debit'      => 0,
-            'credit'     => $paymentData['total_amount'],
+            'debit' => 0,
+            'credit' => $paymentData['total_amount'],
         ]);
 
-        // =============================
-        // Update bills
-        // =============================
         $this->updateBills($paymentData['student_id']);
 
         return redirect()->to('/payments')->with('success', 'Payment berhasil disimpan!');
@@ -196,9 +206,7 @@ class PaymentsController extends BaseController
     public function update($id)
     {
         $payment = $this->paymentModel->find($id);
-        if (!$payment) {
-            throw new \CodeIgniter\Exceptions\PageNotFoundException('Payment tidak ditemukan');
-        }
+        if (!$payment) throw new \CodeIgniter\Exceptions\PageNotFoundException('Payment tidak ditemukan');
 
         $validationRules = [
             'student_id'       => 'required|integer',
@@ -207,7 +215,8 @@ class PaymentsController extends BaseController
             'total_amount'     => 'required|decimal',
             'date'             => 'required',
             'method'           => 'permit_empty|string',
-            'reference'        => 'permit_empty|string'
+            'reference'        => 'permit_empty|string',
+            'reference_file'   => 'permit_empty|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
         ];
 
         if (!$this->validate($validationRules)) {
@@ -224,39 +233,45 @@ class PaymentsController extends BaseController
             'reference'        => $this->request->getPost('reference'),
         ];
 
-        // Update payment
+        $file = $this->request->getFile('reference_file');
+        if ($file && $file->isValid() && !$file->hasMoved()) {
+            // hapus file lama jika ada
+            if (!empty($payment['reference_file']) && file_exists(ROOTPATH . 'public/uploads/' . $payment['reference_file'])) {
+                unlink(ROOTPATH . 'public/uploads/' . $payment['reference_file']);
+            }
+            $newName = $file->getRandomName();
+            $file->move(ROOTPATH . 'public/uploads', $newName); // simpan di public/uploads
+            $data['reference_file'] = $newName;
+        }
+
         $this->paymentModel->update($id, $data);
 
-        // Update jurnal dan journal entries
         if ($payment['journal_id']) {
             $student = $this->studentModel->find($data['student_id']);
             $refText = $data['reference'] ? " - Ref: {$data['reference']}" : "";
             $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
-
             $this->journalModel->update($payment['journal_id'], [
-                'date'        => $data['date'],
+                'date' => $data['date'],
                 'description' => $description,
-                'user_id'     => session()->get('user_id') ?? null,
+                'user_id' => session()->get('user_id') ?? null,
             ]);
 
             $journalEntryModel = new \App\Models\JournalEntryModel();
             $journalEntryModel->where('journal_id', $payment['journal_id'])->delete();
-
             $journalEntryModel->insert([
                 'journal_id' => $payment['journal_id'],
                 'account_id' => $data['debit_account_id'],
-                'debit'      => $data['total_amount'],
-                'credit'     => 0,
+                'debit' => $data['total_amount'],
+                'credit' => 0,
             ]);
             $journalEntryModel->insert([
                 'journal_id' => $payment['journal_id'],
                 'account_id' => $data['credit_account_id'],
-                'debit'      => 0,
-                'credit'     => $data['total_amount'],
+                'debit' => 0,
+                'credit' => $data['total_amount'],
             ]);
         }
 
-        // Update bills
         $this->updateBills($data['student_id']);
 
         return redirect()->to('/payments')->with('success', 'Payment berhasil diperbarui!');
@@ -275,6 +290,14 @@ class PaymentsController extends BaseController
 
         $studentId = $payment['student_id'];
 
+        // Hapus file referensi jika ada
+        if (!empty($payment['reference_file'])) {
+            $filePath = ROOTPATH . 'public/uploads/' . $payment['reference_file'];  // ambil dari public/uploads
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+
         // Hapus jurnal beserta journal_entries jika ada
         if ($payment['journal_id']) {
             $journalEntryModel = new \App\Models\JournalEntryModel();
@@ -288,7 +311,7 @@ class PaymentsController extends BaseController
         // Update bills
         $this->updateBills($studentId);
 
-        return redirect()->to('/payments')->with('success', 'Payment berhasil dihapus dan tagihan diperbarui!');
+        return redirect()->to('/payments')->with('success', 'Payment berhasil dihapus beserta file referensi dan tagihan diperbarui!');
     }
 
     // --------------------------------------------------

@@ -32,13 +32,12 @@
                     <div class="form-group">
                         <label for="default_amount">Jumlah Default</label>
                         <input
-                            type="number"
-                            step="0.01"
+                            type="text"
                             class="form-control <?= isset(session('errors')['default_amount']) ? 'is-invalid' : '' ?>"
                             name="default_amount"
                             id="default_amount"
                             value="<?= old('default_amount', $category['default_amount']) ?>"
-                            placeholder="Contoh: 100000">
+                            placeholder="Contoh: 100.000">
                         <?php if (isset(session('errors')['default_amount'])) : ?>
                             <div class="invalid-feedback">
                                 <?= session('errors')['default_amount'] ?>
@@ -93,4 +92,36 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('default_amount');
+
+        function formatNumber(value) {
+            if (!value) return '';
+            return value.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // titik ribuan
+        }
+
+        input.addEventListener('input', function(e) {
+            // Hapus semua titik sementara
+            let numericValue = this.value.replace(/\./g, '');
+
+            // Simpan posisi kursor
+            let cursorPosition = this.selectionStart;
+
+            // Format dengan titik ribuan
+            this.value = formatNumber(numericValue);
+
+            // Sesuaikan posisi kursor
+            let newLength = this.value.length;
+            this.selectionEnd = cursorPosition + (newLength - numericValue.length);
+        });
+
+        // Sebelum submit, hapus titik agar dikirim sebagai angka bersih
+        input.form.addEventListener('submit', function() {
+            input.value = input.value.replace(/\./g, '');
+        });
+    });
+</script>
+
 <?= $this->endSection() ?>

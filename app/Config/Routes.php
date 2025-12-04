@@ -8,6 +8,7 @@ use App\Controllers\FinancialStatementController;
  */
 
 $routes->get('/develop', 'Home::develop');
+$routes->get('test-write', 'TestWrite::index');
 // Auth --------------------------------------------------------------------------------
 $routes->get('/login', 'AuthController::login');
 $routes->post('/login_process', 'AuthController::login_process');
@@ -59,10 +60,17 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->post('/students/update/(:num)', 'StudentController::update/$1');
     $routes->post('/students/delete/(:num)', 'StudentController::delete/$1');
 
+    $routes->get('students/(:num)/payment-rules', 'StudentPaymentRuleController::editByStudent/$1');
+    $routes->post('students/(:num)/payment-rules', 'StudentPaymentRuleController::updateByStudent/$1');
+    $routes->get('students/(:num)/payment-rules/delete/(:num)', 'StudentPaymentRuleController::deleteRule/$1/$2');
+    $routes->post('students/(:num)/payment-rules/add', 'StudentPaymentRuleController::addRule/$1');
+    $routes->get('students/(:num)/payment-rules/disable/(:num)', 'StudentPaymentRuleController::disableRule/$1/$2');
+    $routes->get('students/(:num)/payment-rules/enable/(:num)', 'StudentPaymentRuleController::enableRule/$1/$2');
+
     $routes->get('/billing', 'BillsController::index');
-    $routes->post('/billing/generate', 'BillsController::generate');
+    $routes->post('/billing/generate', 'BillsController::generateBills');
     $routes->get('/billing/detail/(:num)', 'BillsController::detail/$1');
-    $routes->get('billing/pdf/(:num)', 'BillsController::pdf/$1');
+    $routes->get('/billing/pdf/(:num)', 'BillsController::pdf/$1');
 
     $routes->get('payments', 'PaymentsController::index');
     $routes->get('payments/create', 'PaymentsController::create');
@@ -78,6 +86,8 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->get('payment-categories/edit/(:num)', 'PaymentCategoriesController::edit/$1');
     $routes->post('payment-categories/update/(:num)', 'PaymentCategoriesController::update/$1');
     $routes->post('payment-categories/delete/(:num)', 'PaymentCategoriesController::delete/$1');
+
+    $routes->get('graduates', 'GraduateController::index');
 });
 
 $routes->group('', ['filter' => 'auth:admin,superadmin'], function ($routes) {

@@ -10,7 +10,7 @@
                 <h5>Tambah Transaksi</h5>
             </div>
             <div class="card-body">
-                <form action="/transactions/store" method="post">
+                <form action="/transactions/store" method="post" enctype="multipart/form-data">
                     <?= csrf_field() ?>
 
                     <!-- Tanggal -->
@@ -98,6 +98,15 @@
                         <?php endif ?>
                     </div>
 
+                    <!-- Bukti Upload -->
+                    <div class="form-group">
+                        <label for="proof">Bukti (jpg, png, pdf)</label>
+                        <input type="file" name="proof" id="proof" class="form-control <?= session('errors.proof') ? 'is-invalid' : '' ?>">
+                        <?php if (session('errors.proof')) : ?>
+                            <div class="invalid-feedback"><?= session('errors.proof') ?></div>
+                        <?php endif ?>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">Simpan</button>
                     <a href="/transactions" class="btn btn-secondary">Batal</a>
                 </form>
@@ -145,6 +154,5 @@
         });
     });
 </script>
-
 
 <?= $this->endSection() ?>

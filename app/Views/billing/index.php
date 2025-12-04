@@ -9,17 +9,24 @@
                 <h5 class="mb-0">Tabel Billing</h5>
                 <form action="<?= base_url('billing/generate') ?>" method="post" class="ml-auto d-flex">
                     <?= csrf_field() ?>
+                    <?php
+                    $currentMonth = date('n'); // 1-12
+                    $currentYear = date('Y');
+                    ?>
                     <select name="month" class="form-control mr-2" required>
                         <option value="">Pilih Bulan</option>
                         <?php for ($m = 1; $m <= 12; $m++): ?>
-                            <option value="<?= $m ?>"><?= date('F', mktime(0, 0, 0, $m, 10)) ?></option>
+                            <option value="<?= $m ?>" <?= ($m == $currentMonth) ? 'selected' : '' ?>>
+                                <?= date('F', mktime(0, 0, 0, $m, 10)) ?>
+                            </option>
                         <?php endfor; ?>
                     </select>
                     <select name="year" class="form-control mr-2" required>
                         <option value="">Pilih Tahun</option>
-                        <?php $currentYear = date('Y'); ?>
                         <?php for ($y = $currentYear - 3; $y <= $currentYear + 3; $y++): ?>
-                            <option value="<?= $y ?>"><?= $y ?></option>
+                            <option value="<?= $y ?>" <?= ($y == $currentYear) ? 'selected' : '' ?>>
+                                <?= $y ?>
+                            </option>
                         <?php endfor; ?>
                     </select>
                     <button type="submit" class="btn btn-primary d-flex align-items-center">
@@ -64,47 +71,31 @@
                 <!-- Tabel Billing -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
-                        <thead class="thead-dark">
+                        <thead>
                             <tr>
                                 <th>#</th>
                                 <th>Nama Siswa</th>
-                                <th>Bulan</th>
-                                <th>Tahun</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (!empty($bills)) : ?>
-                                <?php
-                                $no = 1 + (10 * ($pager->getCurrentPage('bills') - 1));
-                                foreach ($bills as $bill) :
-                                    $monthText = $bill['month'] ? date('F', mktime(0, 0, 0, $bill['month'], 10)) : '-';
-                                ?>
-                                    <tr>
-                                        <td><?= $no++ ?></td>
-                                        <td><?= esc($bill['student']) ?></td>
-                                        <td><?= $monthText ?></td>
-                                        <td><?= esc($bill['year']) ?></td>
-                                        <td>
-                                            <?php if ($bill['status_tagihan'] == 'Lunas'): ?>
-                                                <span class="badge bg-success">Lunas</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-danger">Tunggakan</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <a href="<?= base_url('billing/detail/' . $bill['student_id']) ?>" class="btn btn-sm btn-info">
-                                                <i class="fas fa-eye"></i> Detail
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <?php endforeach ?>
-                            <?php else : ?>
+                            <?php foreach ($bills as $no => $bill): ?>
                                 <tr>
-                                    <td colspan="6" class="text-center">Tidak ada data billing.</td>
+                                    <td><?= $no + 1 + ($pager->getCurrentPage('bills') - 1) * 10 ?></td>
+                                    <td><?= esc($bill['student']) ?></td>
+                                    <td>
+                                        <span class="badge <?= $bill['status_tagihan'] == 'Lunas' ? 'bg-success' : 'bg-danger' ?>">
+                                            <?= $bill['status_tagihan'] ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="<?= base_url('billing/detail/' . $bill['student_id']) ?>" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> Detail
+                                        </a>
+                                    </td>
                                 </tr>
-                            <?php endif ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>

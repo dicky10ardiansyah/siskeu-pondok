@@ -49,7 +49,7 @@ class Payments extends Migration
                 'constraint' => '255',
                 'null'       => true,
             ],
-            'reference' => [
+            'reference_file' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
                 'null'       => true,
@@ -65,6 +65,10 @@ class Payments extends Migration
         ]);
 
         $this->forge->addKey('id', true);
+        $this->forge->addKey('student_id');
+        $this->forge->addKey('debit_account_id');
+        $this->forge->addKey('credit_account_id');
+        $this->forge->addKey('date');
         $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('debit_account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('credit_account_id', 'accounts', 'id', 'CASCADE', 'CASCADE');

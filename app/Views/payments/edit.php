@@ -10,7 +10,8 @@
                 <h5>Edit Data Pembayaran</h5>
             </div>
             <div class="card-body">
-                <form action="<?= base_url('payments/update/' . $payment['id']) ?>" method="post">
+                <!-- Tambahkan enctype untuk upload -->
+                <form action="<?= base_url('payments/update/' . $payment['id']) ?>" method="post" enctype="multipart/form-data">
                     <?= csrf_field() ?>
 
                     <!-- Student -->
@@ -70,9 +71,7 @@
                     <!-- Jumlah -->
                     <div class="form-group">
                         <label for="total_amount">Jumlah</label>
-                        <?php
-                        $rawAmount = (int) old('total_amount', $payment['total_amount']);
-                        ?>
+                        <?php $rawAmount = (int) old('total_amount', $payment['total_amount']); ?>
                         <input
                             type="text"
                             class="form-control <?= isset(session('errors')['total_amount']) ? 'is-invalid' : '' ?>"
@@ -117,19 +116,27 @@
                         <?php endif; ?>
                     </div>
 
-                    <!-- Referensi -->
+                    <!-- File Referensi -->
                     <div class="form-group">
-                        <label for="reference">Referensi</label>
-                        <input
-                            type="text"
-                            class="form-control <?= isset(session('errors')['reference']) ? 'is-invalid' : '' ?>"
-                            name="reference"
-                            id="reference"
-                            value="<?= old('reference', $payment['reference']) ?>"
-                            placeholder="Nomor kwitansi / transfer">
-                        <?php if (isset(session('errors')['reference'])) : ?>
-                            <div class="invalid-feedback"><?= session('errors')['reference'] ?></div>
+                        <label for="reference_file">Upload Referensi (Foto / PDF)</label>
+                        <input type="file" name="reference_file" id="reference_file"
+                            class="form-control <?= isset(session('errors')['reference_file']) ? 'is-invalid' : '' ?>"
+                            accept=".jpg,.jpeg,.png,.pdf">
+                        <?php if (isset(session('errors')['reference_file'])) : ?>
+                            <div class="invalid-feedback"><?= session('errors')['reference_file'] ?></div>
                         <?php endif; ?>
+
+                        <!-- Preview file lama -->
+                        <div id="preview" class="mt-2">
+                            <?php if (!empty($payment['reference_file'])): ?>
+                                <?php $ext = pathinfo($payment['reference_file'], PATHINFO_EXTENSION); ?>
+                                <?php if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png'])): ?>
+                                    <img src="<?= base_url('uploads/' . $payment['reference_file']) ?>" style="max-width:150px; height:auto;">
+                                <?php elseif (strtolower($ext) === 'pdf'): ?>
+                                    <a href="<?= base_url('uploads/' . $payment['reference_file']) ?>" target="_blank">Lihat PDF</a>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
 
                     <div class="form-group mt-4">
@@ -166,7 +173,7 @@
             shouldSort: false
         });
 
-        // Input jumlah realtime dengan pemisah ribuan
+        // Format jumlah
         const totalAmount = document.getElementById('total_amount');
 
         function formatNumber(value) {
@@ -179,9 +186,7 @@
             if (newPos > newLength) newPos = newLength;
             el.setSelectionRange(newPos, newPos);
         }
-
-        // Inisialisasi value dari server
-        let rawInit = totalAmount.getAttribute('data-raw'); // angka murni
+        let rawInit = totalAmount.getAttribute('data-raw');
         totalAmount.dataset.raw = rawInit;
         totalAmount.value = formatNumber(rawInit);
 
@@ -189,19 +194,39 @@
             const oldValue = totalAmount.value;
             const oldLength = oldValue.length;
             const cursorPosition = totalAmount.selectionStart;
-
             const rawValue = oldValue.replace(/[^0-9]/g, '');
             totalAmount.dataset.raw = rawValue;
-
             const formattedValue = formatNumber(rawValue);
             totalAmount.value = formattedValue;
-
             setCursorPosition(totalAmount, cursorPosition, oldLength, formattedValue.length);
         });
 
-        // Submit: kirim value murni
         totalAmount.form.addEventListener('submit', function() {
             totalAmount.value = totalAmount.dataset.raw;
+        });
+
+        // Preview file baru
+        const referenceFile = document.getElementById('reference_file');
+        const preview = document.getElementById('preview');
+        referenceFile.addEventListener('change', function() {
+            preview.innerHTML = '';
+            const file = this.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (['jpg', 'jpeg', 'png'].includes(ext)) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.style.maxWidth = '150px';
+                img.style.height = 'auto';
+                preview.appendChild(img);
+            } else if (ext === 'pdf') {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(file);
+                link.textContent = 'Preview PDF';
+                link.target = '_blank';
+                preview.appendChild(link);
+            }
         });
     });
 </script>

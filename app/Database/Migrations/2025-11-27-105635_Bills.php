@@ -59,6 +59,9 @@ class Bills extends Migration
         ]);
 
         $this->forge->addKey('id', true);
+        $this->forge->addKey('student_id'); // index untuk pencarian berdasarkan student
+        $this->forge->addKey('category_id'); // index untuk category
+        $this->forge->addKey(['month', 'year']);
         $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('category_id', 'payment_categories', 'id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('bills');

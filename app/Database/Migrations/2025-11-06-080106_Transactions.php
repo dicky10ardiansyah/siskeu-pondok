@@ -51,6 +51,12 @@ class Transactions extends Migration
                 'unsigned'   => true,
                 'null'       => false,
             ],
+            // Tambahkan kolom bukti
+            'proof' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 255,
+                'null'       => true, // null jika belum ada upload
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

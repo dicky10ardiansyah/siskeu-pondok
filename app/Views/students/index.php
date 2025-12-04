@@ -62,12 +62,25 @@
                                         <td><?= esc($student['school_year'] ?? '-') ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
-                                                <a href="<?= base_url('students/edit/' . $student['id']) ?>" class="btn btn-sm btn-warning mr-2">
+
+                                                <!-- Tombol Edit -->
+                                                <a href="<?= base_url('students/edit/' . $student['id']) ?>"
+                                                    class="btn btn-sm btn-warning mr-2">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $student['id'] ?>)">
+
+                                                <a href="<?= base_url('students/' . $student['id'] . '/payment-rules') ?>"
+                                                    class="btn btn-sm btn-success mr-2">
+                                                    <i class="fas fa-money-bill"></i> Tarif
+                                                </a>
+
+                                                <!-- Tombol Hapus -->
+                                                <button type="button"
+                                                    class="btn btn-sm btn-danger"
+                                                    onclick="confirmDelete(<?= $student['id'] ?>)">
                                                     <i class="fas fa-trash"></i> Hapus
                                                 </button>
+
                                             </div>
                                         </td>
                                     </tr>

@@ -17,7 +17,8 @@
 
                 <!-- Search Form -->
                 <form action="<?= base_url('transactions') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="search" class="form-control mr-2" placeholder="Cari deskripsi/type..." value="<?= esc($keyword ?? '') ?>">
+                    <input type="text" name="search" class="form-control mr-2"
+                        placeholder="Cari deskripsi/type..." value="<?= esc($keyword ?? '') ?>">
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -32,21 +33,22 @@
                                 <th>Amount</th>
                                 <th>Debit Account</th>
                                 <th>Credit Account</th>
+                                <th>Bukti</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
+
                         <tbody>
                             <?php if (!empty($transactions)) : ?>
                                 <?php
-                                // Mapping akun untuk menampilkan kode + nama
                                 $accountsMap = [];
                                 foreach ($accounts as $acc) {
                                     $accountsMap[$acc['id']] = $acc['code'] . ' - ' . $acc['name'];
                                 }
-
                                 $no = 1 + (10 * ($pager->getCurrentPage('transactions') - 1));
-                                foreach ($transactions as $trx) :
                                 ?>
+
+                                <?php foreach ($transactions as $trx) : ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td><?= date('d-m-Y', strtotime($trx['date'])) ?></td>
@@ -59,19 +61,51 @@
                                         <td><?= number_format($trx['amount'], 2) ?></td>
                                         <td><?= esc($accountsMap[$trx['debit_account_id']] ?? '-') ?></td>
                                         <td><?= esc($accountsMap[$trx['credit_account_id']] ?? '-') ?></td>
+
+                                        <td>
+                                            <?php if (!empty($trx['proof'])) : ?>
+                                                <?php
+                                                $url = base_url($trx['proof']);
+                                                $ext = strtolower(pathinfo($trx['proof'], PATHINFO_EXTENSION));
+                                                ?>
+
+                                                <?php if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) : ?>
+                                                    <a href="<?= $url ?>" target="_blank">
+                                                        <img src="<?= $url ?>"
+                                                            class="img-thumbnail"
+                                                            style="width:60px;height:60px;object-fit:cover;">
+                                                    </a>
+                                                <?php elseif ($ext === 'pdf') : ?>
+                                                    <a href="<?= $url ?>" target="_blank"
+                                                        class="d-flex align-items-center justify-content-center bg-light border rounded"
+                                                        style="width:60px;height:60px; text-decoration:none;">
+                                                        <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                                                    </a>
+                                                <?php endif; ?>
+
+                                            <?php else: ?>
+                                                -
+                                            <?php endif; ?>
+                                        </td>
+
                                         <td>
                                             <div class="d-flex justify-content-center">
-                                                <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>" class="btn btn-sm btn-warning mr-2">Edit</a>
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $trx['id'] ?>)">
-                                                    Hapus
-                                                </button>
+                                                <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>"
+                                                    class="btn btn-sm btn-warning mr-2">Edit</a>
+                                                <form action="<?= base_url('transactions/delete/' . $trx['id']) ?>"
+                                                    method="post" style="display:inline;"
+                                                    onsubmit="return confirm('Yakin ingin menghapus transaksi ini?');">
+                                                    <?= csrf_field() ?>
+                                                    <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
                                 <?php endforeach ?>
-                            <?php else : ?>
+
+                            <?php else: ?>
                                 <tr>
-                                    <td colspan="8" class="text-center">Tidak ada data transaksi.</td>
+                                    <td colspan="9" class="text-center">Tidak ada data transaksi.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
@@ -87,55 +121,10 @@
                         'bootstrap_full'
                     ) ?>
                 </div>
+
             </div>
         </div>
     </div>
 </div>
-
-<!-- SweetAlert2 for delete confirmation -->
-<script>
-    function confirmDelete(id) {
-        Swal.fire({
-            title: 'Yakin ingin menghapus?',
-            text: "Data transaksi tidak dapat dikembalikan!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const form = document.createElement('form');
-                form.method = 'post';
-                form.action = '/transactions/delete/' + id;
-
-                const csrf = document.createElement('input');
-                csrf.type = 'hidden';
-                csrf.name = '<?= csrf_token() ?>';
-                csrf.value = '<?= csrf_hash() ?>';
-
-                form.appendChild(csrf);
-                document.body.appendChild(form);
-                form.submit();
-            }
-        });
-    }
-</script>
-
-<!-- SweetAlert2 for flash success -->
-<?php if (session()->getFlashdata('success')) : ?>
-    <script>
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: '<?= session()->getFlashdata('success') ?>',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-        });
-    </script>
-<?php endif ?>
 
 <?= $this->endSection() ?>

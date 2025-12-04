@@ -19,7 +19,8 @@ class TransactionModel extends Model
         'date',
         'user_id',
         'debit_account_id',
-        'credit_account_id'
+        'credit_account_id',
+        'proof'
     ];
 
     public function getAccounts()

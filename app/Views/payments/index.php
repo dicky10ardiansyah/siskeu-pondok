@@ -36,7 +36,7 @@
                                 <th>Jumlah</th>
                                 <th>Tanggal</th>
                                 <th>Metode</th>
-                                <th>Referensi</th>
+                                <th>File</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -54,7 +54,28 @@
                                         <td><?= number_format($payment['total_amount'], 2) ?></td>
                                         <td><?= date('d M Y', strtotime($payment['date'])) ?></td>
                                         <td><?= esc($payment['method'] ?? '-') ?></td>
-                                        <td><?= esc($payment['reference'] ?? '-') ?></td>
+                                        <td style="width:80px; text-align:center;">
+                                            <?php if (!empty($payment['reference_file'])): ?>
+                                                <?php
+                                                $filePath = base_url('uploads/' . $payment['reference_file']);
+                                                $ext = pathinfo($payment['reference_file'], PATHINFO_EXTENSION);
+                                                ?>
+                                                <?php if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png'])): ?>
+                                                    <a href="<?= $filePath ?>" target="_blank">
+                                                        <img src="<?= $filePath ?>" class="img-thumbnail" style="width:80px; height:80px; object-fit:cover;">
+                                                    </a>
+                                                <?php elseif (strtolower($ext) === 'pdf'): ?>
+                                                    <a href="<?= $filePath ?>" target="_blank"
+                                                        style="display:flex; align-items:center; justify-content:center; width:80px; height:80px; border:1px solid #dee2e6; border-radius:4px;">
+                                                        <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="<?= $filePath ?>" target="_blank"><?= esc($payment['reference_file']) ?></a>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                -
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('payments/edit/' . $payment['id']) ?>" class="btn btn-sm btn-warning mr-2">
