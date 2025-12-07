@@ -81,9 +81,12 @@
                                                 <a href="<?= base_url('payments/edit/' . $payment['id']) ?>" class="btn btn-sm btn-warning mr-2">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $payment['id'] ?>)">
+                                                <button type="button" class="btn btn-sm btn-danger mr-2" onclick="confirmDelete(<?= $payment['id'] ?>)">
                                                     <i class="fas fa-trash"></i> Hapus
                                                 </button>
+                                                <a href="<?= base_url("payments/receipt/{$payment['id']}") ?>" target="_blank" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-receipt"></i> Kwitansi
+                                                </a>
                                             </div>
                                         </td>
                                     </tr>

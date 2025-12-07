@@ -19,11 +19,15 @@ class JournalEntryModel extends Model
         'credit'
     ];
 
-    public function getSaldoByAccount($accountId)
+    public function getSaldoByAccount($accountId, $bulan = null, $tahun = null)
     {
-        $builder = $this->db->table($this->table);
-        $builder->select('SUM(debit) as total_debit, SUM(credit) as total_credit');
-        $builder->where('account_id', $accountId);
+        $builder = $this->db->table($this->table)
+            ->select('SUM(debit) as total_debit, SUM(credit) as total_credit')
+            ->where('account_id', $accountId);
+
+        if ($bulan) $builder->where('MONTH(created_at)', $bulan);
+        if ($tahun) $builder->where('YEAR(created_at)', $tahun);
+
         $row = $builder->get()->getRowArray();
 
         return ($row['total_debit'] ?? 0) - ($row['total_credit'] ?? 0);

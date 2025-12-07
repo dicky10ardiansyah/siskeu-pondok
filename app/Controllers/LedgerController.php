@@ -38,22 +38,27 @@ class LedgerController extends BaseController
 
             // Ambil journal entries untuk akun ini
             $journalEntriesQuery = $this->journalEntriesModel->where('account_id', $account['id']);
-            if ($start) $journalEntriesQuery->where('created_at >=', $start . ' 00:00:00');
-            if ($end) $journalEntriesQuery->where('created_at <=', $end . ' 23:59:59');
-
-            $journalEntries = $journalEntriesQuery->orderBy('created_at', 'ASC')->findAll();
+            $journalEntries = $journalEntriesQuery->findAll();
 
             foreach ($journalEntries as $je) {
                 $journalData = $this->journalModel->find($je['journal_id']);
-                $entries[] = [
-                    'date' => $je['created_at'],
-                    'description' => $journalData ? $journalData['description'] : 'Jurnal',
-                    'debit' => $je['debit'],
-                    'credit' => $je['credit'],
-                ];
+
+                // Lewati entry jika tanggal jurnal di luar range
+                if ($journalData) {
+                    $journalDate = $journalData['date']; // gunakan tanggal jurnal, bukan created_at
+                    if ($start && $journalDate < $start) continue;
+                    if ($end && $journalDate > $end) continue;
+
+                    $entries[] = [
+                        'date' => $journalDate,
+                        'description' => $journalData['description'] ?? 'Jurnal',
+                        'debit' => $je['debit'],
+                        'credit' => $je['credit'],
+                    ];
+                }
             }
 
-            // Urutkan berdasarkan tanggal
+            // Urutkan berdasarkan tanggal jurnal
             usort($entries, fn($a, $b) => strtotime($a['date']) - strtotime($b['date']));
 
             // Hitung saldo berjalan
@@ -67,12 +72,11 @@ class LedgerController extends BaseController
                 $totalCredit += $entry['credit'];
             }
 
-            // Tambahkan totalBalance di sini
             $ledger[$account['name']] = [
                 'entries' => $entries,
                 'totalDebit' => $totalDebit,
                 'totalCredit' => $totalCredit,
-                'totalBalance' => $balance, // saldo akhir akun
+                'totalBalance' => $balance,
             ];
         }
 

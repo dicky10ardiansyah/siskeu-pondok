@@ -41,24 +41,6 @@
                 <form action="<?= base_url('billing') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="keyword" class="form-control mr-2" placeholder="Cari nama siswa..." value="<?= esc($keyword ?? '') ?>">
 
-                    <select name="filter_month" class="form-control mr-2">
-                        <option value="">Semua Bulan</option>
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                            <option value="<?= $m ?>" <?= (isset($filter_month) && $filter_month == $m) ? 'selected' : '' ?>>
-                                <?= date('F', mktime(0, 0, 0, $m, 10)) ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-
-                    <select name="filter_year" class="form-control mr-2">
-                        <option value="">Semua Tahun</option>
-                        <?php for ($y = date('Y'); $y <= date('Y') + 5; $y++): ?>
-                            <option value="<?= $y ?>" <?= (isset($filter_year) && $filter_year == $y) ? 'selected' : '' ?>>
-                                <?= $y ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-
                     <select name="filter_status" class="form-control mr-2">
                         <option value="">Semua Status</option>
                         <option value="Lunas" <?= (isset($filter_status) && $filter_status == 'Lunas') ? 'selected' : '' ?>>Lunas</option>
@@ -80,22 +62,30 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($bills as $no => $bill): ?>
+                            <?php if (!empty($bills)): ?>
+                                <?php foreach ($bills as $no => $bill): ?>
+                                    <tr>
+                                        <td><?= $no + 1 + ($pager->getCurrentPage('bills') - 1) * 10 ?></td>
+                                        <td><?= esc($bill['student']) ?></td>
+                                        <td>
+                                            <span class="badge <?= $bill['status_tagihan'] == 'Lunas' ? 'bg-success' : 'bg-danger' ?>">
+                                                <?= $bill['status_tagihan'] ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="<?= base_url('billing/detail/' . $bill['student_id']) ?>" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> Detail
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td><?= $no + 1 + ($pager->getCurrentPage('bills') - 1) * 10 ?></td>
-                                    <td><?= esc($bill['student']) ?></td>
-                                    <td>
-                                        <span class="badge <?= $bill['status_tagihan'] == 'Lunas' ? 'bg-success' : 'bg-danger' ?>">
-                                            <?= $bill['status_tagihan'] ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="<?= base_url('billing/detail/' . $bill['student_id']) ?>" class="btn btn-sm btn-info">
-                                            <i class="fas fa-eye"></i> Detail
-                                        </a>
+                                    <td colspan="4" class="text-center">
+                                        Tidak ada tunggakan
                                     </td>
                                 </tr>
-                            <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>

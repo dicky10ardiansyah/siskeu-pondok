@@ -159,7 +159,7 @@ function tanggalIndonesia($date)
                                                 <br><small class="text-muted">
                                                     Dibayar dari:
                                                     <?php foreach ($bill['payment_breakdown'] as $p): ?>
-                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['date']) ?>),
+                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['created_at']) ?>),
                                                     <?php endforeach; ?>
                                                 </small>
                                             <?php endif; ?>

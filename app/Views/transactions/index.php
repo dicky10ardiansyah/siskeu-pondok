@@ -92,9 +92,7 @@
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>"
                                                     class="btn btn-sm btn-warning mr-2">Edit</a>
-                                                <form action="<?= base_url('transactions/delete/' . $trx['id']) ?>"
-                                                    method="post" style="display:inline;"
-                                                    onsubmit="return confirm('Yakin ingin menghapus transaksi ini?');">
+                                                <form action="<?= base_url('transactions/delete/' . $trx['id']) ?>" method="post" style="display:inline;" class="delete-form">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
                                                 </form>
@@ -126,5 +124,32 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const deleteForms = document.querySelectorAll('.delete-form');
+
+        deleteForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault(); // hentikan submit default
+                Swal.fire({
+                    title: 'Yakin ingin menghapus?',
+                    text: "Data transaksi akan dihapus permanen!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, hapus!',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit(); // submit form jika dikonfirmasi
+                    }
+                });
+            });
+        });
+    });
+</script>
 
 <?= $this->endSection() ?>

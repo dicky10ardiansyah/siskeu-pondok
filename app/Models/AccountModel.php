@@ -32,40 +32,48 @@ class AccountModel extends Model
      * @param int $accountId
      * @return float
      */
-    public function getSaldo($accountId)
+    public function getSaldo($accountId, $bulan = null, $tahun = null)
     {
-        // Ambil total debit & kredit dari journal_entries
         $builder = $this->db->table('journal_entries')
             ->selectSum('debit', 'total_debit')
             ->selectSum('credit', 'total_credit')
-            ->where('account_id', $accountId)
-            ->get()
-            ->getRow();
+            ->where('account_id', $accountId);
 
-        // Ambil tipe akun
+        if ($bulan) {
+            $builder->where('MONTH(created_at)', $bulan);
+        }
+        if ($tahun) {
+            $builder->where('YEAR(created_at)', $tahun);
+        }
+
+        $result = $builder->get()->getRowArray();
+
         $account = $this->find($accountId);
 
-        $totalDebit  = (float)($builder->total_debit ?? 0);
-        $totalCredit = (float)($builder->total_credit ?? 0);
+        $totalDebit  = (float)($result['total_debit'] ?? 0);
+        $totalCredit = (float)($result['total_credit'] ?? 0);
 
-        // Hitung saldo berdasarkan tipe akun
-        if ($account->type == 'asset' || $account->type == 'expense') {
-            return $totalDebit - $totalCredit;
-        } elseif ($account->type == 'income' || $account->type == 'equity') {
-            return $totalCredit - $totalDebit;
-        } else {
-            return 0;
+        switch ($account['type']) {
+            case 'asset':
+            case 'expense':
+                return $totalDebit - $totalCredit;
+            case 'income':
+            case 'equity':
+            case 'liability':
+                return $totalCredit - $totalDebit;
+            default:
+                return 0;
         }
     }
 
     /**
-     * Ambil semua akun beserta saldo
+     * Ambil semua akun beserta saldo, dengan filter bulan & tahun opsional
      */
-    public function getAllWithSaldo()
+    public function getAllWithSaldo($bulan = null, $tahun = null)
     {
         $accounts = $this->findAll();
-        foreach ($accounts as $acc) {
-            $acc->saldo = $this->getSaldo($acc->id);
+        foreach ($accounts as &$acc) {
+            $acc['saldo'] = $this->getSaldo($acc['id'], $bulan, $tahun);
         }
         return $accounts;
     }

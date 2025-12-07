@@ -8,6 +8,8 @@ use App\Models\TransactionModel;
 use App\Models\JournalEntryModel;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class FinancialStatementController extends BaseController
 {
@@ -81,52 +83,89 @@ class FinancialStatementController extends BaseController
      */
     public function neraca()
     {
+        $request = service('request');
+        $startDate = $request->getGet('start_date'); // format YYYY-MM-DD
+        $endDate   = $request->getGet('end_date');   // format YYYY-MM-DD
+
         $accounts = $this->accountsModel->findAll();
 
-        $assets = $liabilities = $equities = [];
-        $total_assets = $total_liabilities = $total_equities = 0;
+        // Inisialisasi total
+        $totals = [
+            'asset'      => 0,
+            'liability'  => 0,
+            'equity'     => 0,
+            'income'     => 0,
+            'expense'    => 0,
+        ];
 
-        foreach ($accounts as $acc) {
-            $debit = (float)($this->journalEntriesModel->selectSum('debit')->where('account_id', $acc['id'])->first()['debit'] ?? 0);
-            $credit = (float)($this->journalEntriesModel->selectSum('credit')->where('account_id', $acc['id'])->first()['credit'] ?? 0);
+        // Menyimpan detail akun untuk view
+        $detail = [
+            'asset'     => [],
+            'liability' => [],
+            'equity'    => [],
+            'income'    => [],
+            'expense'   => [],
+        ];
 
-            switch ($acc['type']) {
+        foreach ($accounts as $account) {
+            // Query sum debit & credit per akun dengan join journals
+            $builder = $this->accountsModel->db->table('journal_entries')
+                ->selectSum('journal_entries.debit', 'total_debit')
+                ->selectSum('journal_entries.credit', 'total_credit')
+                ->join('journals', 'journals.id = journal_entries.journal_id', 'left')
+                ->where('journal_entries.account_id', $account['id']);
+
+            if ($startDate) {
+                $builder->where('journals.date >=', $startDate);
+            }
+            if ($endDate) {
+                $builder->where('journals.date <=', $endDate);
+            }
+
+            $result = $builder->get()->getRowArray();
+
+            $totalDebit  = (float)($result['total_debit'] ?? 0);
+            $totalCredit = (float)($result['total_credit'] ?? 0);
+
+            // Hitung saldo sesuai tipe akun
+            $saldo = 0;
+            switch ($account['type']) {
                 case 'asset':
-                    $saldo = $debit - $credit;
-                    $assets[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
-                    $total_assets += $saldo;
-                    break;
-                case 'liability':
-                    $saldo = $credit - $debit;
-                    $liabilities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
-                    $total_liabilities += $saldo;
-                    break;
-                case 'equity':
-                    $saldo = $credit - $debit;
-                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
-                    $total_equities += $saldo;
+                case 'expense':
+                    $saldo = $totalDebit - $totalCredit;
                     break;
                 case 'income':
-                    $saldo = $credit;
-                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => $saldo];
-                    $total_equities += $saldo;
-                    break;
-                case 'expense':
-                    $saldo = $debit;
-                    $equities[] = ['code' => $acc['code'], 'name' => $acc['name'], 'debit' => $debit, 'credit' => $credit, 'saldo' => -$saldo];
-                    $total_equities -= $saldo;
+                case 'liability':
+                case 'equity':
+                    $saldo = $totalCredit - $totalDebit;
                     break;
             }
+
+            $totals[$account['type']] += $saldo;
+            $detail[$account['type']][] = [
+                'name' => $account['name'],
+                'saldo' => $saldo
+            ];
         }
 
+        // Hitung laba/rugi bersih dan masukkan ke equity
+        $netProfit = $totals['income'] - $totals['expense'];
+        $totals['equity'] += $netProfit;
+        $detail['equity'][] = [
+            'name' => ($netProfit >= 0 ? 'Laba Berjalan' : 'Defisit Berjalan'),
+            'saldo' => $netProfit
+        ];
+
+        // Cek keseimbangan neraca
+        $balance_check = ($totals['asset'] == $totals['liability'] + $totals['equity']);
+
         return view('financial_statement/neraca', [
-            'assets' => $assets,
-            'total_assets' => $total_assets,
-            'liabilities' => $liabilities,
-            'total_liabilities' => $total_liabilities,
-            'equities' => $equities,
-            'total_equities' => $total_equities,
-            'total_liabilities_equities' => $total_liabilities + $total_equities
+            'detail'        => $detail,
+            'totals'        => $totals,
+            'net_profit'    => $netProfit,
+            'balance_check' => $balance_check,
+            'start_date'    => $startDate,
+            'end_date'      => $endDate
         ]);
     }
 

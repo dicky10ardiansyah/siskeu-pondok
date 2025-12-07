@@ -51,6 +51,8 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
 
     $routes->get('/financial-statement', [FinancialStatementController::class, 'index']);
     $routes->get('/financial-statement/neraca', [FinancialStatementController::class, 'neraca']);
+    $routes->get('financial-statement/neraca/pdf', 'FinancialStatementController::neracaPdf');
+    $routes->get('financial-statement/neraca/excel', 'FinancialStatementController::neracaExcel');
     $routes->get('/financial-statement/laba-rugi', [FinancialStatementController::class, 'labaRugi']);
 
     $routes->get('/students', 'StudentController::index');
@@ -78,6 +80,7 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->get('payments/edit/(:num)', 'PaymentsController::edit/$1');
     $routes->post('payments/update/(:num)', 'PaymentsController::update/$1');
     $routes->post('payments/delete/(:num)', 'PaymentsController::delete/$1');
+    $routes->get('payments/receipt/(:num)', 'PaymentsController::receipt/$1');
 
     // Payment Categories
     $routes->get('payment-categories', 'PaymentCategoriesController::index');

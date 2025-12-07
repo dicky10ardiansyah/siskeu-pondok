@@ -3,38 +3,35 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Detail Billing - <?= esc($student['name']) ?></title>
+    <title>Tagihan Siswa - <?= esc($student['name']) ?></title>
     <style>
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
-            background-color: #f4f4f9;
             margin: 20px;
+            color: #333;
         }
 
         h2,
         h4 {
             margin: 0;
+            padding: 0;
         }
 
-        /* Card Ringkasan */
-        .summary-card {
-            display: flex;
-            gap: 15px;
+        .summary {
             margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .card {
-            flex: 1;
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 15px 20px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        .summary td {
+            padding: 10px;
             text-align: center;
+            border: 1px solid #ddd;
             font-weight: bold;
         }
 
-        .card.due-now {
+        .summary .due-now {
             background-color: #ffc107;
             color: #000;
         }
@@ -43,15 +40,12 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
         }
 
         th,
         td {
-            padding: 10px;
+            border: 1px solid #ccc;
+            padding: 8px;
             text-align: center;
         }
 
@@ -62,7 +56,7 @@
 
         .badge {
             display: inline-block;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
             font-size: 10px;
             color: #fff;
@@ -84,9 +78,9 @@
         .progress {
             background-color: #e9ecef;
             border-radius: 4px;
-            height: 12px;
-            overflow: hidden;
-            margin-top: 4px;
+            height: 10px;
+            width: 100%;
+            margin-top: 2px;
         }
 
         .progress-bar {
@@ -98,6 +92,12 @@
         small {
             font-size: 10px;
         }
+
+        .section-title {
+            margin-top: 25px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -106,24 +106,17 @@
     <h4>Siswa: <?= esc($student['name']) ?></h4>
     <p>Tanggal Cetak: <?= esc($datePrint) ?></p>
 
-    <!-- Ringkasan Card -->
-    <div class="summary-card">
-        <div class="card">
-            Total Tagihan<br>
-            Rp <?= number_format($totalBills, 0, ',', '.') ?>
-        </div>
-        <div class="card">
-            Total Pembayaran<br>
-            Rp <?= number_format($totalPayments, 0, ',', '.') ?>
-        </div>
-        <div class="card due-now">
-            Harus Dibayar Sekarang<br>
-            Rp <?= number_format($amountDueNow, 0, ',', '.') ?>
-        </div>
-    </div>
+    <!-- Ringkasan -->
+    <table class="summary">
+        <tr>
+            <td>Total Tagihan<br>Rp <?= number_format($totalBills, 0, ',', '.') ?></td>
+            <td>Total Pembayaran<br>Rp <?= number_format($totalPayments, 0, ',', '.') ?></td>
+            <td class="due-now">Harus Dibayar Sekarang<br>Rp <?= number_format($amountDueNow, 0, ',', '.') ?></td>
+        </tr>
+    </table>
 
     <!-- Billing Bulanan -->
-    <h4>Billing Bulanan</h4>
+    <div class="section-title">Billing Bulanan</div>
     <table>
         <thead>
             <tr>
@@ -145,13 +138,13 @@
                     <td><?= $no++ ?></td>
                     <td><?= $b['month'] ? date('F', mktime(0, 0, 0, $b['month'], 10)) : '-' ?></td>
                     <td><?= $b['year'] ?></td>
-                    <td><?= $b['category'] ?></td>
+                    <td><?= $b['category_name'] ?></td>
                     <td>Rp <?= number_format($b['amount'], 0, ',', '.') ?></td>
                     <td>
                         Rp <?= number_format($b['paid_amount'], 0, ',', '.') ?>
                         <?php if ($paidPercent > 0 && $paidPercent < 100): ?>
                             <div class="progress">
-                                <div class="progress-bar" style="width: <?= $paidPercent ?>%"></div>
+                                <div class="progress-bar" style="width:<?= $paidPercent ?>%"></div>
                             </div>
                         <?php endif; ?>
                     </td>
@@ -159,7 +152,7 @@
                     <td>
                         <?php if (!empty($b['payment_breakdown'])): ?>
                             <?php foreach ($b['payment_breakdown'] as $p): ?>
-                                Rp <?= number_format($p['amount'], 0, ',', '.') ?> (<?= date('d M Y', strtotime($p['date'])) ?>)<br>
+                                Rp <?= number_format($p['amount'], 0, ',', '.') ?> (<?= date('d M Y', strtotime($p['created_at'])) ?>)<br>
                             <?php endforeach; ?>
                         <?php endif; ?>
                         <?php if (!empty($b['partial_reason'])): ?>
@@ -172,7 +165,7 @@
     </table>
 
     <!-- Billing One-time -->
-    <h4>Billing One-time</h4>
+    <div class="section-title">Billing One-time</div>
     <table>
         <thead>
             <tr>
@@ -190,13 +183,13 @@
                 $paidPercent = $b['amount'] > 0 ? ($b['paid_amount'] / $b['amount']) * 100 : 0; ?>
                 <tr>
                     <td><?= $no++ ?></td>
-                    <td><?= $b['category'] ?></td>
+                    <td><?= $b['category_name'] ?></td>
                     <td>Rp <?= number_format($b['amount'], 0, ',', '.') ?></td>
                     <td>
                         Rp <?= number_format($b['paid_amount'], 0, ',', '.') ?>
                         <?php if ($paidPercent > 0 && $paidPercent < 100): ?>
                             <div class="progress">
-                                <div class="progress-bar" style="width: <?= $paidPercent ?>%"></div>
+                                <div class="progress-bar" style="width:<?= $paidPercent ?>%"></div>
                             </div>
                         <?php endif; ?>
                     </td>
@@ -204,7 +197,7 @@
                     <td>
                         <?php if (!empty($b['payment_breakdown'])): ?>
                             <?php foreach ($b['payment_breakdown'] as $p): ?>
-                                Rp <?= number_format($p['amount'], 0, ',', '.') ?> (<?= date('d M Y', strtotime($p['date'])) ?>)<br>
+                                Rp <?= number_format($p['amount'], 0, ',', '.') ?> (<?= date('d M Y', strtotime($p['created_at'])) ?>)<br>
                             <?php endforeach; ?>
                         <?php endif; ?>
                         <?php if (!empty($b['partial_reason'])): ?>
@@ -215,7 +208,6 @@
             <?php endforeach; ?>
         </tbody>
     </table>
-
 </body>
 
 </html>

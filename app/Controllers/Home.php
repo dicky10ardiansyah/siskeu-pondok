@@ -3,76 +3,123 @@
 namespace App\Controllers;
 
 use App\Models\BillModel;
+use App\Models\AccountModel;
 use App\Models\StudentModel;
-use App\Models\BillPaymentModel;
+use App\Models\TransactionModel;
+use App\Models\JournalEntryModel;
 
 
 class Home extends BaseController
 {
+    protected $accountModel;
     protected $billModel;
-    protected $paymentModel;
-    protected $studentModel;
 
     public function __construct()
     {
+        $this->accountModel = new AccountModel();
         $this->billModel = new BillModel();
-        $this->paymentModel = new BillPaymentModel();
-        $this->studentModel = new StudentModel();
     }
 
     public function index()
     {
-        $year = $this->request->getGet('year') ?? date('Y');
+        $request = service('request');
+        $startDate = $request->getGet('start_date'); // format: YYYY-MM-DD
+        $endDate   = $request->getGet('end_date');   // format: YYYY-MM-DD
 
-        // Ringkasan
-        $totalBill = $this->billModel->where('year', $year)->selectSum('amount')->first()['amount'];
-        $totalPayment = $this->billModel->where('year', $year)->selectSum('paid_amount')->first()['paid_amount'];
-        $totalDue = $totalBill - $totalPayment;
-        $realization = $totalBill > 0 ? round(($totalPayment / $totalBill) * 100, 2) : 0;
+        $accounts = $this->accountModel->findAll();
 
-        // Jumlah siswa menunggak (unique per siswa)
-        $studentsInDebt = $this->billModel
-            ->where('status', 'unpaid')
-            ->where('year', $year)
-            ->select('student_id')
-            ->groupBy('student_id')
-            ->countAllResults();
-
-        // Chart bulanan
-        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        $billsPerMonth = [];
-        $paymentsPerMonth = [];
-        foreach (range(1, 12) as $m) {
-            $billsPerMonth[] = (int) $this->billModel
-                ->where('month', $m)
-                ->where('year', $year)
-                ->selectSum('amount')
-                ->first()['amount'];
-            $paymentsPerMonth[] = (int) $this->billModel
-                ->where('month', $m)
-                ->where('year', $year)
-                ->selectSum('paid_amount')
-                ->first()['paid_amount'];
-        }
-
-        $data = [
-            'title' => 'Dashboard Keuangan',
-            'year' => $year,
-            'summary' => [
-                'total_bill' => $totalBill,
-                'total_payment' => $totalPayment,
-                'total_due' => $totalDue,
-                'realization_percentage' => $realization,
-                'students_in_debt' => $studentsInDebt
-            ],
-            'monthly_chart' => [
-                'months' => $months,
-                'bills' => $billsPerMonth,
-                'payments' => $paymentsPerMonth
-            ]
+        // Inisialisasi total keuangan
+        $totals = [
+            'asset'      => 0,
+            'liability'  => 0,
+            'equity'     => 0,
+            'income'     => 0,
+            'expense'    => 0,
         ];
 
-        return view('home/index', $data);
+        foreach ($accounts as $account) {
+            // Query saldo akun dengan join journals untuk filter tanggal
+            $builder = $this->accountModel->db->table('journal_entries')
+                ->selectSum('journal_entries.debit', 'total_debit')
+                ->selectSum('journal_entries.credit', 'total_credit')
+                ->join('journals', 'journals.id = journal_entries.journal_id', 'left')
+                ->where('journal_entries.account_id', $account['id']);
+
+            if ($startDate) {
+                $builder->where('journals.date >=', $startDate);
+            }
+            if ($endDate) {
+                $builder->where('journals.date <=', $endDate);
+            }
+
+            $result = $builder->get()->getRowArray();
+
+            $totalDebit  = (float)($result['total_debit'] ?? 0);
+            $totalCredit = (float)($result['total_credit'] ?? 0);
+
+            // Hitung saldo sesuai tipe akun
+            $saldo = 0;
+            switch ($account['type']) {
+                case 'asset':
+                case 'expense':
+                    $saldo = $totalDebit - $totalCredit;
+                    break;
+                case 'income':
+                case 'liability':
+                case 'equity':
+                    $saldo = $totalCredit - $totalDebit;
+                    break;
+            }
+
+            // Simpan saldo sementara
+            $totals[$account['type']] += $saldo;
+        }
+
+        // --- Hitung laba/rugi bersih ---
+        // Income – Expense masuk ke Equity
+        $netProfit = $totals['income'] - $totals['expense'];
+        $totals['equity'] += $netProfit;
+
+        // --- Hitung Tagihan dan Pembayaran ---
+        $billBuilder = $this->billModel->db->table('bills');
+
+        if ($startDate) {
+            $billBuilder->where('DATE(CONCAT(year, "-", LPAD(month,2,"0"), "-01")) >=', $startDate);
+        }
+        if ($endDate) {
+            $billBuilder->where('DATE(CONCAT(year, "-", LPAD(month,2,"0"), "-01")) <=', $endDate);
+        }
+
+        $bills = $billBuilder->get()->getResultArray();
+
+        $totalTagihan = 0;
+        $totalDibayar = 0;
+        $tunggakan = 0;
+        $siswaMenunggak = [];
+
+        foreach ($bills as $bill) {
+            $totalTagihan += (float)$bill['amount'];
+            $totalDibayar += (float)$bill['paid_amount'];
+            $sisa = (float)$bill['amount'] - (float)$bill['paid_amount'];
+            if ($sisa > 0) {
+                $tunggakan += $sisa;
+                $siswaMenunggak[$bill['student_id']] = true;
+            }
+        }
+
+        $jumlahSiswaMenunggak = count($siswaMenunggak);
+
+        // Kirim semua data ke view
+        return view('home/index', [
+            'title' => 'Home',
+            'totals' => $totals,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'total_tagihan' => $totalTagihan,
+            'total_dibayar' => $totalDibayar,
+            'total_tunggakan' => $tunggakan,
+            'jumlah_siswa_menunggak' => $jumlahSiswaMenunggak
+        ]);
     }
 
     public function develop()

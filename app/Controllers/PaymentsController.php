@@ -7,7 +7,9 @@ use App\Models\AccountModel;
 use App\Models\JournalModel;
 use App\Models\PaymentModel;
 use App\Models\StudentModel;
+use App\Models\BillPaymentModel;
 use App\Controllers\BaseController;
+use App\Models\StudentPaymentRuleModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class PaymentsController extends BaseController
@@ -17,6 +19,8 @@ class PaymentsController extends BaseController
     protected $accountModel;
     protected $journalModel;
     protected $billModel;
+    protected $billPaymentModel;
+    protected $studentPaymentRuleModel;
     protected $db;
     protected $helpers = ['form'];
 
@@ -27,6 +31,8 @@ class PaymentsController extends BaseController
         $this->accountModel = new AccountModel();
         $this->journalModel = new JournalModel();
         $this->billModel    = new BillModel();
+        $this->billPaymentModel = new BillPaymentModel();
+        $this->studentPaymentRuleModel = new StudentPaymentRuleModel();
         $this->db = \Config\Database::connect();
     }
 
@@ -363,5 +369,36 @@ class PaymentsController extends BaseController
                 ]);
             }
         }
+    }
+
+    public function receipt($payment_id)
+    {
+        // Ambil data payment beserta nama siswa
+        $payment = $this->paymentModel
+            ->select('payments.*, students.name as student_name, students.nis')
+            ->join('students', 'students.id = payments.student_id', 'left')
+            ->where('payments.id', $payment_id)
+            ->first();
+
+        if (!$payment) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Payment tidak ditemukan');
+        }
+
+        // Ambil semua Student Payment Rule aktif untuk siswa
+        $rules = $this->studentPaymentRuleModel
+            ->select('student_payment_rules.amount, payment_categories.name as category_name')
+            ->join('payment_categories', 'payment_categories.id = student_payment_rules.category_id')
+            ->where('student_payment_rules.student_id', $payment['student_id'])
+            ->where('student_payment_rules.is_mandatory', 1)
+            ->orderBy('student_payment_rules.id', 'ASC')
+            ->findAll();
+
+        // Tampilkan PDF tanpa hitung total pembayaran
+        $dompdf = new \Dompdf\Dompdf();
+        $html = view('payments/receipt', compact('payment', 'rules'));
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $dompdf->stream("Kwitansi-{$payment['student_name']}-{$payment['id']}.pdf", ['Attachment' => false]);
     }
 }

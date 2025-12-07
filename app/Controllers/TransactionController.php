@@ -105,6 +105,9 @@ class TransactionController extends BaseController
             $proofPath = 'uploads/proof/' . $fileName;
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         // 3️⃣ Simpan transaksi
         $transactionData = [
             'type' => $post['type'],
@@ -118,8 +121,41 @@ class TransactionController extends BaseController
         ];
 
         $this->transactions->insert($transactionData);
+        $transactionId = $this->transactions->getInsertID();
 
-        return redirect()->to('/transactions')->with('success', 'Transaksi berhasil disimpan.');
+        // 4️⃣ Buat jurnal
+        $journalData = [
+            'date' => $post['date'],
+            'description' => $post['description'],
+            'user_id' => session()->get('user_id'),
+        ];
+        $this->journals->insert($journalData);
+        $journalId = $this->journals->getInsertID();
+
+        // 5️⃣ Buat journal entries
+        $journalEntries = [
+            [
+                'journal_id' => $journalId,
+                'account_id' => $post['debit_account_id'],
+                'debit' => $post['amount'],
+                'credit' => 0,
+            ],
+            [
+                'journal_id' => $journalId,
+                'account_id' => $post['credit_account_id'],
+                'debit' => 0,
+                'credit' => $post['amount'],
+            ]
+        ];
+        $this->journalEntries->insertBatch($journalEntries);
+
+        $db->transComplete();
+
+        if (!$db->transStatus()) {
+            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan transaksi.');
+        }
+
+        return redirect()->to('/transactions')->with('success', 'Transaksi berhasil disimpan dan jurnal dibuat.');
     }
 
     // Form edit transaksi
@@ -149,7 +185,7 @@ class TransactionController extends BaseController
         $post = $this->request->getPost();
         $file = $this->request->getFile('proof');
 
-        // Validasi
+        // 1️⃣ Validasi
         $validationRules = [
             'date' => 'required',
             'description' => 'required',
@@ -165,22 +201,24 @@ class TransactionController extends BaseController
         }
 
         $transaction = $this->transactions->find($id);
+        if (!$transaction) {
+            return redirect()->back()->with('error', 'Transaksi tidak ditemukan.');
+        }
+
         $proofPath = $transaction['proof'] ?? null;
 
-        // Upload baru jika ada
+        // 2️⃣ Upload bukti baru jika ada
         $uploadDir = ROOTPATH . 'public/uploads/proof/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0775, true);
         }
 
         if ($file && $file->isValid() && !$file->hasMoved()) {
-
             // Hapus bukti lama
             if ($proofPath && file_exists(ROOTPATH . 'public/' . $proofPath)) {
                 unlink(ROOTPATH . 'public/' . $proofPath);
             }
-
-            // Upload baru
+            // Upload bukti baru
             $randomName = $file->getRandomName();
             $file->move($uploadDir, $randomName);
             $proofPath = 'uploads/proof/' . $randomName;
@@ -189,7 +227,7 @@ class TransactionController extends BaseController
         $db = \Config\Database::connect();
         $db->transStart();
 
-        // Update transaksi
+        // 3️⃣ Update transaksi
         $transactionData = [
             'type' => $post['type'],
             'description' => $post['description'],
@@ -201,14 +239,14 @@ class TransactionController extends BaseController
         ];
         $this->transactions->update($id, $transactionData);
 
-        // Hapus jurnal lama
+        // 4️⃣ Hapus jurnal lama (jika ada)
         $journal = $this->journals->where('description', $transaction['description'])->first();
         if ($journal) {
             $this->journalEntries->where('journal_id', $journal['id'])->delete();
             $this->journals->delete($journal['id']);
         }
 
-        // Tambah jurnal baru
+        // 5️⃣ Buat jurnal baru
         $journalData = [
             'date' => $post['date'],
             'description' => $post['description'],
@@ -217,7 +255,7 @@ class TransactionController extends BaseController
         $this->journals->insert($journalData);
         $journalId = $this->journals->getInsertID();
 
-        // Tambah journal entries baru
+        // 6️⃣ Buat journal entries baru
         $journalEntries = [
             [
                 'journal_id' => $journalId,
@@ -240,7 +278,7 @@ class TransactionController extends BaseController
             return redirect()->back()->withInput()->with('error', 'Gagal mengupdate transaksi.');
         }
 
-        return redirect()->to('/transactions')->with('success', 'Transaksi berhasil diupdate.');
+        return redirect()->to('/transactions')->with('success', 'Transaksi berhasil diupdate dan jurnal diperbarui.');
     }
 
     // Hapus transaksi + jurnal + bukti
