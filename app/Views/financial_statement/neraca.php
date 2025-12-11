@@ -2,41 +2,27 @@
 <?php $this->setVar('title', 'Laporan Neraca'); ?>
 <?= $this->section('content') ?>
 
-<div class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1 class="m-0">Laporan Neraca</h1>
-            </div>
-            <div class="col-sm-6">
-                <ol class="breadcrumb float-sm-right">
-                    <li class="breadcrumb-item"><a href="/">Home</a></li>
-                    <li class="breadcrumb-item active">Laporan Neraca</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-</div>
-
 <section class="content">
     <div class="container-fluid">
 
         <!-- Filter Tanggal -->
         <div class="row mb-3">
-            <div class="col-md-6">
-                <form method="get">
-                    <div class="form-row">
-                        <div class="col">
-                            <input type="date" name="start_date" class="form-control" value="<?= esc($start_date) ?>" placeholder="Start Date">
+            <div class="col-md-12">
+                <div class="callout callout-info">
+                    <form method="get">
+                        <div class="form-row">
+                            <div class="col">
+                                <input type="date" name="start_date" class="form-control" value="<?= esc($start_date) ?>" placeholder="Start Date">
+                            </div>
+                            <div class="col">
+                                <input type="date" name="end_date" class="form-control" value="<?= esc($end_date) ?>" placeholder="End Date">
+                            </div>
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary">Filter</button>
+                            </div>
                         </div>
-                        <div class="col">
-                            <input type="date" name="end_date" class="form-control" value="<?= esc($end_date) ?>" placeholder="End Date">
-                        </div>
-                        <div class="col">
-                            <button type="submit" class="btn btn-primary">Filter</button>
-                        </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
 

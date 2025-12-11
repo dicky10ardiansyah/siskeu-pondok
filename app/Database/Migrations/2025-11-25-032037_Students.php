@@ -38,6 +38,11 @@ class Students extends Migration
                 'type'       => 'YEAR',
                 'null'       => true,
             ],
+            'overpaid' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '10,2',
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

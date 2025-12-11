@@ -61,6 +61,15 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->get('/students/edit/(:num)', 'StudentController::edit/$1');
     $routes->post('/students/update/(:num)', 'StudentController::update/$1');
     $routes->post('/students/delete/(:num)', 'StudentController::delete/$1');
+    $routes->get('students/bulk-edit', 'StudentController::bulkEdit');
+    $routes->post('students/bulk-update', 'StudentController::bulkUpdate');
+
+    $routes->get('/classes', 'ClassController::index');
+    $routes->get('/classes/create', 'ClassController::create');
+    $routes->post('/classes/store', 'ClassController::store');
+    $routes->get('/classes/edit/(:num)', 'ClassController::edit/$1');
+    $routes->post('/classes/update/(:num)', 'ClassController::update/$1');
+    $routes->post('/classes/delete/(:num)', 'ClassController::delete/$1');
 
     $routes->get('students/(:num)/payment-rules', 'StudentPaymentRuleController::editByStudent/$1');
     $routes->post('students/(:num)/payment-rules', 'StudentPaymentRuleController::updateByStudent/$1');
@@ -73,6 +82,7 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->post('/billing/generate', 'BillsController::generateBills');
     $routes->get('/billing/detail/(:num)', 'BillsController::detail/$1');
     $routes->get('/billing/pdf/(:num)', 'BillsController::pdf/$1');
+    $routes->post('billing/deleteDetail/(:num)', 'BillsController::deleteDetail/$1');
 
     $routes->get('payments', 'PaymentsController::index');
     $routes->get('payments/create', 'PaymentsController::create');
@@ -89,6 +99,9 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->get('payment-categories/edit/(:num)', 'PaymentCategoriesController::edit/$1');
     $routes->post('payment-categories/update/(:num)', 'PaymentCategoriesController::update/$1');
     $routes->post('payment-categories/delete/(:num)', 'PaymentCategoriesController::delete/$1');
+
+    $routes->get('payment-categories/class-rules/(:num)', 'PaymentCategoriesController::editClassRules/$1');
+    $routes->post('payment-categories/class-rules/(:num)', 'PaymentCategoriesController::updateClassRules/$1');
 
     $routes->get('graduates', 'GraduateController::index');
 });

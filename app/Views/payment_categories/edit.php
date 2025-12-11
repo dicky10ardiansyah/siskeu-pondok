@@ -6,8 +6,11 @@
 <div class="row">
     <div class="col-md-6 offset-md-3">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5>Edit Kategori Pembayaran</h5>
+                <a href="<?= base_url('payment-categories/edit-class-rules/' . $category['id']) ?>" class="btn btn-sm btn-info">
+                    <i class="fas fa-layer-group"></i> Tarif per Kelas
+                </a>
             </div>
             <div class="card-body">
                 <form action="<?= base_url('payment-categories/update/' . $category['id']) ?>" method="post">
@@ -103,21 +106,13 @@
         }
 
         input.addEventListener('input', function(e) {
-            // Hapus semua titik sementara
             let numericValue = this.value.replace(/\./g, '');
-
-            // Simpan posisi kursor
             let cursorPosition = this.selectionStart;
-
-            // Format dengan titik ribuan
             this.value = formatNumber(numericValue);
-
-            // Sesuaikan posisi kursor
             let newLength = this.value.length;
             this.selectionEnd = cursorPosition + (newLength - numericValue.length);
         });
 
-        // Sebelum submit, hapus titik agar dikirim sebagai angka bersih
         input.form.addEventListener('submit', function() {
             input.value = input.value.replace(/\./g, '');
         });

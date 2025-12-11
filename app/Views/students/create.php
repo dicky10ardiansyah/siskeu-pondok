@@ -48,13 +48,17 @@
 
                     <div class="form-group">
                         <label for="class">Kelas</label>
-                        <input
-                            type="text"
-                            class="form-control <?= isset(session('errors')['class']) ? 'is-invalid' : '' ?>"
+                        <select
                             name="class"
                             id="class"
-                            value="<?= old('class') ?>"
-                            placeholder="Contoh: X IPA 1 / XII RPL / VII B">
+                            class="form-control <?= isset(session('errors')['class']) ? 'is-invalid' : '' ?>">
+                            <option value="">-- Pilih Kelas --</option>
+                            <?php foreach ($classes as $c) : ?>
+                                <option value="<?= $c['id'] ?>" <?= old('class') == $c['id'] ? 'selected' : '' ?>>
+                                    <?= esc($c['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                         <?php if (isset(session('errors')['class'])) : ?>
                             <div class="invalid-feedback">
                                 <?= session('errors')['class'] ?>

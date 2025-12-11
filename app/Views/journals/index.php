@@ -41,9 +41,9 @@
                                 ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= esc($journal['date']) ?></td>
+                                        <td><?= date('d F Y', strtotime($journal['date'])) ?></td>
                                         <td><?= esc($journal['description']) ?></td>
-                                        <td><?= esc($journal['user_id']) ?></td> <!-- bisa diganti nama user jika join -->
+                                        <td><?= esc($journal['user_name'] ?? 'Tidak ada') ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('journals/' . $journal['id']) ?>" class="btn btn-sm btn-info mr-2">

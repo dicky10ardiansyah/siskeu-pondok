@@ -1,5 +1,6 @@
 <?= $this->extend('layouts/template/apps') ?>
 <?php $this->setVar('title', 'Detail Billing'); ?>
+
 <?= $this->section('content') ?>
 
 <?php
@@ -13,7 +14,20 @@ function statusLabel($paid_amount, $amount, $is_partial = false)
 
 function tanggalIndonesia($date)
 {
-    $bulan = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+    $bulan = [
+        1 => 'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember'
+    ];
     $d = date('d', strtotime($date));
     $m = (int)date('m', strtotime($date));
     $y = date('Y', strtotime($date));
@@ -24,9 +38,9 @@ function tanggalIndonesia($date)
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0 d-inline-block">Detail Billing - <?= esc($student['name']) ?></h5>
-                <div class="float-right">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Detail Billing - <?= esc($student['name']) ?></h5>
+                <div>
                     <a href="<?= base_url('billing') ?>" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left"></i> Kembali
                     </a>
@@ -35,52 +49,44 @@ function tanggalIndonesia($date)
                     </a>
                 </div>
             </div>
-            <div class="card-body">
 
-                <!-- Summary Card -->
+            <div class="card-body">
+                <!-- Summary -->
                 <div class="row mb-4">
-                    <div class="col-lg-4 col-12 mb-2">
+                    <div class="col-lg-3 col-6">
                         <div class="small-box bg-info">
                             <div class="inner">
                                 <h3>Rp <?= number_format($totalBills, 0, ',', '.') ?></h3>
                                 <p>Total Tagihan</p>
                             </div>
-                            <div class="icon">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            </div>
-                            <a href="#" class="small-box-footer">
-                                Detail <i class="fas fa-arrow-circle-right"></i>
-                            </a>
+                            <div class="icon"><i class="fas fa-file-invoice-dollar"></i></div>
                         </div>
                     </div>
-
-                    <div class="col-lg-4 col-12 mb-2">
+                    <div class="col-lg-3 col-6">
                         <div class="small-box bg-success">
                             <div class="inner">
                                 <h3>Rp <?= number_format($totalPayments, 0, ',', '.') ?></h3>
                                 <p>Total Pembayaran</p>
                             </div>
-                            <div class="icon">
-                                <i class="fas fa-money-bill-wave"></i>
-                            </div>
-                            <a href="#" class="small-box-footer">
-                                Detail <i class="fas fa-arrow-circle-right"></i>
-                            </a>
+                            <div class="icon"><i class="fas fa-money-bill-wave"></i></div>
                         </div>
                     </div>
-
-                    <div class="col-lg-4 col-12 mb-2">
-                        <div class="small-box bg-warning">
+                    <div class="col-lg-3 col-6">
+                        <div class="small-box <?= $amountDueNow > 0 ? 'bg-danger' : 'bg-secondary' ?>">
                             <div class="inner">
                                 <h3>Rp <?= number_format($amountDueNow, 0, ',', '.') ?></h3>
-                                <p>Harus Dibayar Sekarang</p>
+                                <p>Total yang harus dibayar</p>
                             </div>
-                            <div class="icon">
-                                <i class="fas fa-exclamation-triangle"></i>
+                            <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-6">
+                        <div class="small-box bg-primary">
+                            <div class="inner">
+                                <h3>Rp <?= number_format($overpaid, 0, ',', '.') ?></h3>
+                                <p>Saldo / Uang Kelebihan</p>
                             </div>
-                            <a href="#" class="small-box-footer">
-                                Bayar Sekarang <i class="fas fa-arrow-circle-right"></i>
-                            </a>
+                            <div class="icon"><i class="fas fa-wallet"></i></div>
                         </div>
                     </div>
                 </div>
@@ -98,34 +104,30 @@ function tanggalIndonesia($date)
                                 <th>Jumlah</th>
                                 <th>Terbayar</th>
                                 <th>Status</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if ($monthly): $no = 1;
-                                foreach ($monthly as $bill): ?>
+                            <?php if ($monthly): $no = 1; ?>
+                                <?php foreach ($monthly as $bill): ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= $bill['month'] ? date('F', mktime(0, 0, 0, $bill['month'], 10)) : '-' ?></td>
+                                        <td><?= date('F', mktime(0, 0, 0, $bill['month'], 10)) ?></td>
                                         <td><?= esc($bill['year']) ?></td>
                                         <td><?= esc($bill['category']) ?></td>
                                         <td><?= number_format($bill['amount'], 0, ',', '.') ?></td>
                                         <td><?= number_format($bill['paid_amount'], 0, ',', '.') ?></td>
+                                        <td><?= statusLabel($bill['paid_amount'], $bill['amount'], $bill['is_partial_payment']) ?></td>
                                         <td>
-                                            <?= statusLabel($bill['paid_amount'], $bill['amount'], $bill['is_partial_payment']) ?>
-                                            <?php if (!empty($bill['payment_breakdown'])): ?>
-                                                <br><small class="text-muted">
-                                                    Dibayar dari:
-                                                    <?php foreach ($bill['payment_breakdown'] as $p): ?>
-                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['created_at']) ?>),
-                                                    <?php endforeach; ?>
-                                                </small>
-                                            <?php endif; ?>
+                                            <button class="btn btn-danger btn-sm btn-delete" data-id="<?= $bill['id'] ?>">
+                                                <i class="fas fa-trash"></i> Hapus
+                                            </button>
                                         </td>
                                     </tr>
-                                <?php endforeach;
-                            else: ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td colspan="7" class="text-center">Tidak ada billing bulanan.</td>
+                                    <td colspan="8" class="text-center">Tidak ada billing bulanan.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -143,35 +145,28 @@ function tanggalIndonesia($date)
                                 <th>Jumlah</th>
                                 <th>Terbayar</th>
                                 <th>Status</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if ($one_time): $no = 1;
-                                foreach ($one_time as $bill): ?>
+                            <?php if ($one_time): $no = 1; ?>
+                                <?php foreach ($one_time as $bill): ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td><?= esc($bill['category']) ?></td>
                                         <td><?= number_format($bill['amount'], 0, ',', '.') ?></td>
                                         <td><?= number_format($bill['paid_amount'], 0, ',', '.') ?></td>
+                                        <td><?= statusLabel($bill['paid_amount'], $bill['amount'], $bill['is_partial_payment']) ?></td>
                                         <td>
-                                            <?= statusLabel($bill['paid_amount'], $bill['amount'], $bill['is_partial_payment']) ?>
-                                            <?php if (!empty($bill['payment_breakdown'])): ?>
-                                                <br><small class="text-muted">
-                                                    Dibayar dari:
-                                                    <?php foreach ($bill['payment_breakdown'] as $p): ?>
-                                                        <?= number_format($p['amount'], 0, ',', '.') ?> (<?= tanggalIndonesia($p['created_at']) ?>),
-                                                    <?php endforeach; ?>
-                                                </small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($bill['partial_reason'])): ?>
-                                                <br><small class="text-danger"><?= $bill['partial_reason'] ?></small>
-                                            <?php endif; ?>
+                                            <button class="btn btn-danger btn-sm btn-delete" data-id="<?= $bill['id'] ?>">
+                                                <i class="fas fa-trash"></i> Hapus
+                                            </button>
                                         </td>
                                     </tr>
-                                <?php endforeach;
-                            else: ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada billing one-time.</td>
+                                    <td colspan="6" class="text-center">Tidak ada billing one-time.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -182,5 +177,54 @@ function tanggalIndonesia($date)
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+<script>
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-delete');
+        if (!btn) return;
+
+        const billId = btn.dataset.id;
+
+        Swal.fire({
+            title: 'Yakin ingin menghapus?',
+            text: "Data tagihan akan hilang permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then(result => {
+            if (result.isConfirmed) {
+                fetch(`<?= base_url('billing/deleteDetail/') ?>${billId}`, {
+                        method: 'POST',
+                        body: new URLSearchParams({
+                            '<?= csrf_token() ?>': '<?= csrf_hash() ?>'
+                        }),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: data.success,
+                                showConfirmButton: false,
+                                timer: 2000
+                            }).then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.error, 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Gagal menghubungi server.', 'error'));
+            }
+        });
+    });
+</script>
 
 <?= $this->endSection() ?>

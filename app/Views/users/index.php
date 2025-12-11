@@ -5,17 +5,16 @@
     <div class="col">
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
-                <h5 class="mb-0">Tabel Transaksi</h5>
-                <a href="<?= base_url('transactions/create') ?>" class="btn btn-primary ml-auto">
-                    <i class="fas fa-plus"></i> Tambah Transaksi
+                <h5 class="mb-0">Tabel Pengguna</h5>
+                <a href="<?= base_url('user/create') ?>" class="btn btn-primary ml-auto">
+                    <i class="fas fa-plus"></i> Tambah Pengguna
                 </a>
             </div>
 
             <div class="card-body">
 
-                <!-- Search Form -->
-                <form action="<?= base_url('transactions') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="search" class="form-control mr-2" placeholder="Cari deskripsi/type..." value="<?= esc($keyword ?? '') ?>">
+                <form action="<?= base_url('user') ?>" method="get" class="form-inline mb-3">
+                    <input type="text" name="search" class="form-control mr-2" placeholder="Cari nama/email..." value="<?= esc($search ?? '') ?>">
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -24,62 +23,45 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th>#</th>
-                                <th>Tanggal</th>
-                                <th>Deskripsi</th>
-                                <th>Type</th>
-                                <th>Amount</th>
-                                <th>Debit Account</th>
-                                <th>Credit Account</th>
+                                <th>Nama</th>
+                                <th>Email</th>
+                                <th>Role</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (!empty($transactions)) : ?>
-
-                                <?php
-                                // Buat map akun untuk menampilkan nama akun
-                                $accountsMap = [];
-                                foreach ($accounts as $acc) {
-                                    $accountsMap[$acc['id']] = $acc['code'] . ' - ' . $acc['name'];
-                                }
-
-                                $no = 1 + (10 * ($pager->getCurrentPage('transactions') - 1));
-                                foreach ($transactions as $trx) :
-                                ?>
+                            <?php if (!empty($users)) : ?>
+                                <?php $no = 1 + (10 * ($pager->getCurrentPage('users') - 1));
+                                foreach ($users as $user) : ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= esc($trx['date']) ?></td>
-                                        <td><?= esc($trx['description']) ?></td>
-                                        <td><?= esc($trx['type']) ?></td>
-                                        <td><?= number_format($trx['amount'], 2) ?></td>
-                                        <td><?= esc($accountsMap[$trx['debit_account_id']] ?? '-') ?></td>
-                                        <td><?= esc($accountsMap[$trx['credit_account_id']] ?? '-') ?></td>
+                                        <td><?= esc($user['name']) ?></td>
+                                        <td><?= esc($user['email']) ?></td>
+                                        <td><?= esc($user['role']) ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
-                                                <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>" class="btn btn-sm btn-warning mr-2">Edit</a>
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $trx['id'] ?>)">
+                                                <a href="<?= base_url('user/edit/' . $user['id']) ?>" class="btn btn-sm btn-warning mr-2">Edit</a>
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $user['id'] ?>)">
                                                     Hapus
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                 <?php endforeach ?>
-
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="8" class="text-center">Tidak ada data transaksi.</td>
+                                    <td colspan="5" class="text-center">Tidak ada data pengguna.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Pagination -->
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['search' => $keyword ?? ''],
-                        'transactions',
+                        ['search' => $search ?? ''],
+                        'users',
                         'bootstrap_full'
                     ) ?>
                 </div>
@@ -93,7 +75,7 @@
     function confirmDelete(id) {
         Swal.fire({
             title: 'Yakin ingin menghapus?',
-            text: "Data transaksi tidak dapat dikembalikan!",
+            text: "Data pengguna tidak dapat dikembalikan!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -104,7 +86,7 @@
             if (result.isConfirmed) {
                 const form = document.createElement('form');
                 form.method = 'post';
-                form.action = '/transactions/delete/' + id;
+                form.action = '/user/delete/' + id;
 
                 const csrf = document.createElement('input');
                 csrf.type = 'hidden';
@@ -120,13 +102,13 @@
 </script>
 
 <!-- SweetAlert2 for flash success -->
-<?php if (session()->getFlashdata('success')) : ?>
+<?php if (session()->getFlashdata('message')) : ?>
     <script>
         Swal.fire({
             toast: true,
             position: 'top-end',
             icon: 'success',
-            title: '<?= session()->getFlashdata('success') ?>',
+            title: '<?= session()->getFlashdata('message') ?>',
             showConfirmButton: false,
             timer: 3000,
             timerProgressBar: true,

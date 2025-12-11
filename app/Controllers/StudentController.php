@@ -2,36 +2,49 @@
 
 namespace App\Controllers;
 
+use App\Models\ClassModel;
 use App\Models\StudentModel;
 use App\Controllers\BaseController;
+use App\Models\StudentPaymentRuleModel;
 use CodeIgniter\HTTP\ResponseInterface;
+use App\Models\PaymentCategoryClassRuleModel;
 
 class StudentController extends BaseController
 {
     protected $studentModel;
+    protected $classModel;
 
     public function __construct()
     {
         $this->studentModel = new StudentModel();
+        $this->classModel   = new ClassModel();
     }
 
     public function index()
     {
-        $keyword = $this->request->getVar('keyword'); // search dari query string
-        $studentsModel = $this->studentModel;
+        $keyword = $this->request->getGet('keyword');
+        $perPage = 10;
 
+        $builder = $this->studentModel
+            ->select('students.*, classes.name as class_name')
+            ->join('classes', 'classes.id = students.class', 'left')
+            ->where('students.status', 0) // ⚠ hanya tampil yang BELUM LULUS
+            ->orderBy('students.id', 'DESC');
+
+        // FILTER KEYWORD
         if ($keyword) {
-            $studentsModel = $studentsModel
-                ->like('name', $keyword)
-                ->orLike('nis', $keyword);
+            $builder->groupStart()
+                ->like('students.name', $keyword)
+                ->orLike('students.nis', $keyword)
+                ->groupEnd();
         }
 
-        $data['students'] = $studentsModel
-            ->orderBy('id', 'DESC')
-            ->paginate(5, 'students');
+        $data['students'] = $builder->paginate($perPage, 'students');
+        $data['pager']    = $this->studentModel->pager;
+        $data['keyword']  = $keyword;
 
-        $data['pager'] = $this->studentModel->pager;
-        $data['keyword'] = $keyword;
+        // Data kelas untuk filter jika ingin tetap dipakai
+        $data['classes'] = $this->classModel->orderBy('name', 'ASC')->findAll();
 
         return view('students/index', $data);
     }
@@ -39,7 +52,8 @@ class StudentController extends BaseController
     // FORM CREATE
     public function create()
     {
-        return view('students/create');
+        $data['classes'] = $this->classModel->orderBy('name', 'ASC')->findAll();
+        return view('students/create', $data);
     }
 
     // SAVE NEW STUDENT
@@ -93,11 +107,14 @@ class StudentController extends BaseController
     // FORM EDIT
     public function edit($id)
     {
-        $data['student'] = $this->studentModel->find($id);
+        $student = $this->studentModel->find($id);
 
-        if (!$data['student']) {
-            return redirect()->to('/students')->with('error', 'Data tidak ditemukan');
+        if (!$student) {
+            return redirect()->to('/students')->with('error', 'Data siswa tidak ditemukan');
         }
+
+        $data['student'] = $student;
+        $data['classes'] = $this->classModel->orderBy('name', 'ASC')->findAll();
 
         return view('students/edit', $data);
     }
@@ -155,5 +172,97 @@ class StudentController extends BaseController
     {
         $this->studentModel->delete($id);
         return redirect()->to('/students')->with('success', 'Data berhasil dihapus');
+    }
+
+    // FORM BULK EDIT
+    public function bulkEdit()
+    {
+        // Ambil hanya siswa yang BELUM LULUS
+        $students = $this->studentModel
+            ->select('students.*, classes.name as class_name')
+            ->join('classes', 'classes.id = students.class', 'left')
+            ->where('students.status', 0) // ⬅ hanya siswa belum lulus
+            ->orderBy('students.name', 'ASC')
+            ->findAll();
+
+        // Ambil semua kelas
+        $classes = $this->classModel->orderBy('name', 'ASC')->findAll();
+
+        return view('students/bulk_edit', [
+            'students' => $students,
+            'classes'  => $classes
+        ]);
+    }
+
+    // PROSES BULK UPDATE
+    public function bulkUpdate()
+    {
+        $studentIds   = $this->request->getVar('student_id');
+        $classes      = $this->request->getVar('class');
+        $statuses     = $this->request->getVar('status');
+        $schoolYears  = $this->request->getVar('school_year');
+
+        $studentPaymentRuleModel = new StudentPaymentRuleModel();
+        $paymentCategoryClassRuleModel = new PaymentCategoryClassRuleModel();
+
+        if ($studentIds && is_array($studentIds)) {
+            foreach ($studentIds as $id) {
+                $data = [];
+
+                $oldStudent = $this->studentModel->find($id);
+
+                if (isset($classes[$id]) && $classes[$id] !== '') {
+                    $data['class'] = $classes[$id];
+                }
+
+                if (isset($statuses[$id])) {
+                    $data['status'] = $statuses[$id];
+                }
+
+                if (isset($schoolYears[$id]) && $schoolYears[$id] !== '') {
+                    $data['school_year'] = $schoolYears[$id];
+                }
+
+                if (!empty($data)) {
+                    $this->studentModel->update($id, $data);
+
+                    // --- Sinkronisasi payment rules jika class berubah ---
+                    if (isset($data['class']) && $oldStudent['class'] != $data['class']) {
+                        // Ambil semua kategori yang terkait dengan kelas baru
+                        $categoryRules = $paymentCategoryClassRuleModel
+                            ->where('class_id', $data['class'])
+                            ->findAll();
+
+                        foreach ($categoryRules as $rule) {
+                            $existingRule = $studentPaymentRuleModel
+                                ->where('student_id', $id)
+                                ->where('category_id', $rule['category_id'])
+                                ->first();
+
+                            if ($existingRule) {
+                                if (!isset($existingRule['is_paid']) || $existingRule['is_paid'] == 0) {
+                                    $studentPaymentRuleModel->update($existingRule['id'], [
+                                        'amount'     => $rule['amount'],
+                                        'updated_at' => date('Y-m-d H:i:s')
+                                    ]);
+                                }
+                            } else {
+                                $studentPaymentRuleModel->insert([
+                                    'student_id'  => $id,
+                                    'category_id' => $rule['category_id'],
+                                    'amount'      => $rule['amount'],
+                                    'is_mandatory' => 1,
+                                    'is_paid'     => 0,
+                                    'created_at'  => date('Y-m-d H:i:s'),
+                                    'updated_at'  => date('Y-m-d H:i:s')
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return redirect()->to('/students')->with('success', 'Data siswa berhasil diupdate secara massal');
     }
 }

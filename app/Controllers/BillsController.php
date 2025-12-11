@@ -235,9 +235,10 @@ class BillsController extends BaseController
 
         $monthly  = [];
         $one_time = [];
+        $totalBills = 0;
+        $totalPayments = 0;
 
         foreach ($allBills as $bill) {
-
             $billPayments = $this->billPaymentModel
                 ->select('amount, created_at')
                 ->where('bill_id', $bill['id'])
@@ -245,11 +246,19 @@ class BillsController extends BaseController
 
             $category = $this->paymentCategoryModel->find($bill['category_id']);
 
+            $status = 'unpaid';
+            if (($bill['paid_amount'] ?? 0) >= $bill['amount']) {
+                $status = 'paid';
+            } elseif (($bill['paid_amount'] ?? 0) > 0) {
+                $status = 'partial';
+            }
+
             $billData = [
                 'id' => $bill['id'],
                 'category' => $category['name'] ?? '-',
                 'amount' => $bill['amount'],
                 'paid_amount' => $bill['paid_amount'] ?? 0,
+                'status' => $status,
                 'is_partial_payment' => ($bill['paid_amount'] ?? 0) > 0 && ($bill['paid_amount'] ?? 0) < $bill['amount'],
                 'payment_breakdown' => $billPayments,
                 'month' => $bill['month'],
@@ -257,25 +266,56 @@ class BillsController extends BaseController
                 'partial_reason' => $bill['partial_reason'] ?? null
             ];
 
-            if ($category['billing_type'] == 'monthly') {
+            if ($category['billing_type'] === 'monthly') {
                 $monthly[] = $billData;
             } else {
                 $one_time[] = $billData;
             }
+
+            $totalBills += $bill['amount'];
+            $totalPayments += $bill['paid_amount'] ?? 0;
         }
 
-        $totalBills    = array_sum(array_column($allBills, 'amount'));
-        $totalPayments = array_sum(array_column($allBills, 'paid_amount'));
-        $amountDueNow  = $totalBills - $totalPayments;
+        // -----------------------------
+        // Perhitungan Total Pembayaran + Saldo
+        // -----------------------------
+        $totalPaymentsWithOverpaid = $totalPayments + ($student['overpaid'] ?? 0);
+        $amountDueNow = $totalBills - $totalPaymentsWithOverpaid;
+        $overpaid = 0;
+        if ($amountDueNow < 0) {
+            $overpaid = abs($amountDueNow);
+            $amountDueNow = 0;
+        }
 
         return view('billing/detail', [
-            'student' => $student,
-            'monthly' => $monthly,
-            'one_time' => $one_time,
-            'totalBills' => $totalBills,
-            'totalPayments' => $totalPayments,
-            'amountDueNow' => $amountDueNow
+            'student'       => $student,
+            'monthly'       => $monthly,
+            'one_time'      => $one_time,
+            'totalBills'    => $totalBills,
+            'totalPayments' => $totalPaymentsWithOverpaid,
+            'amountDueNow'  => $amountDueNow,
+            'overpaid'      => $overpaid
         ]);
+    }
+
+    // --------------------------------------------------
+    // DELETE DETAIL TAGIHAN
+    // --------------------------------------------------
+    public function deleteDetail($bill_id)
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setJSON(['error' => 'Invalid request']);
+        }
+
+        $bill = $this->billModel->find($bill_id);
+        if (!$bill) {
+            return $this->response->setJSON(['error' => 'Tagihan tidak ditemukan']);
+        }
+
+        $this->billPaymentModel->where('bill_id', $bill_id)->delete();
+        $this->billModel->delete($bill_id);
+
+        return $this->response->setJSON(['success' => 'Tagihan berhasil dihapus']);
     }
 
     // --------------------------------------------------
@@ -289,18 +329,81 @@ class BillsController extends BaseController
         }
 
         $bills = $this->billModel
-            ->select('bills.*, payment_categories.name as category_name')
+            ->select('bills.*, payment_categories.name as category_name, payment_categories.billing_type')
             ->join('payment_categories', 'payment_categories.id = bills.category_id')
             ->where('student_id', $student_id)
             ->orderBy('year', 'ASC')
             ->orderBy('month', 'ASC')
             ->findAll();
 
+        $monthly = [];
+        $one_time = [];
+        $totalBills = 0;
+        $totalPayments = 0;
+
+        foreach ($bills as $b) {
+            $paymentBreakdown = $this->billPaymentModel
+                ->select('amount, created_at')
+                ->where('bill_id', $b['id'])
+                ->findAll();
+
+            $status = 'unpaid';
+            if (($b['paid_amount'] ?? 0) >= $b['amount']) {
+                $status = 'paid';
+            } elseif (($b['paid_amount'] ?? 0) > 0) {
+                $status = 'partial';
+            }
+
+            $data = [
+                'id' => $b['id'],
+                'category_name' => $b['category_name'],
+                'amount' => $b['amount'],
+                'paid_amount' => $b['paid_amount'] ?? 0,
+                'status' => $status,
+                'month' => $b['month'],
+                'year' => $b['year'],
+                'payment_breakdown' => $paymentBreakdown,
+                'partial_reason' => $b['partial_reason'] ?? null
+            ];
+
+            if ($b['billing_type'] === 'monthly') {
+                $monthly[] = $data;
+            } else {
+                $one_time[] = $data;
+            }
+
+            $totalBills += $b['amount'];
+            $totalPayments += $b['paid_amount'] ?? 0;
+        }
+
+        // -----------------------------
+        // Perhitungan Total Pembayaran + Saldo
+        // -----------------------------
+        $totalPaymentsWithOverpaid = $totalPayments + ($student['overpaid'] ?? 0);
+        $amountDueNow = $totalBills - $totalPaymentsWithOverpaid;
+        $overpaid = 0;
+        if ($amountDueNow < 0) {
+            $overpaid = abs($amountDueNow);
+            $amountDueNow = 0;
+        }
+
+        $datePrint = date('d-m-Y');
+
+        $html = view('billing/pdf', [
+            'student'       => $student,
+            'monthly'       => $monthly,
+            'one_time'      => $one_time,
+            'totalBills'    => $totalBills,
+            'totalPayments' => $totalPaymentsWithOverpaid,
+            'amountDueNow'  => $amountDueNow,
+            'overpaid'      => $overpaid,
+            'datePrint'     => $datePrint
+        ]);
+
         $dompdf = new \Dompdf\Dompdf();
-        $html = view('billing/pdf', compact('student', 'bills'));
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $dompdf->stream("Tagihan-{$student['name']}.pdf", ['Attachment' => true]);
+        $dompdf->stream("Tagihan-{$student['name']}.pdf", ['Attachment' => false]);
     }
 }

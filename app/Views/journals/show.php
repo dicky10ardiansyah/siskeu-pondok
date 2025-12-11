@@ -5,18 +5,18 @@
 <?= $this->section('content') ?>
 <div class="container mt-4">
     <div class="card">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header">
             <h5 class="mb-0">Detail Jurnal</h5>
         </div>
         <div class="card-body">
             <?php if ($journal): ?>
-                <p><strong>Tanggal:</strong> <?= esc($journal['date']) ?></p>
+                <p><strong>Tanggal:</strong> <?= date('d F Y', strtotime($journal['date'])) ?></p>
                 <p><strong>Deskripsi:</strong> <?= esc($journal['description']) ?></p>
 
                 <hr>
                 <h6>Rincian Akun</h6>
                 <table class="table table-bordered">
-                    <thead>
+                    <thead class="thead-dark">
                         <tr>
                             <th>No</th>
                             <th>Akun</th>

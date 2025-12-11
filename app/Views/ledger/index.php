@@ -11,15 +11,17 @@
 
             <div class="card-body">
                 <!-- Filter Tanggal & Export -->
-                <form action="<?= base_url('ledger') ?>" method="get" class="form-inline mb-3">
-                    <label for="start" class="mr-2">Dari:</label>
-                    <input type="date" name="start" id="start" class="form-control mr-2" value="<?= esc($start) ?>">
-                    <label for="end" class="mr-2">Sampai:</label>
-                    <input type="date" name="end" id="end" class="form-control mr-2" value="<?= esc($end) ?>">
-                    <button type="submit" class="btn btn-primary mr-2">Filter</button>
-                    <a href="<?= base_url('ledger/export/pdf?start=' . $start . '&end=' . $end) ?>" class="btn btn-danger mr-2">Export PDF</a>
-                    <a href="<?= base_url('ledger/export/excel?start=' . $start . '&end=' . $end) ?>" class="btn btn-success">Export Excel</a>
-                </form>
+                <div class="callout callout-info">
+                    <form action="<?= base_url('ledger') ?>" method="get" class="form-inline mb-3">
+                        <label for="start" class="mr-2">Dari:</label>
+                        <input type="date" name="start" id="start" class="form-control mr-2" value="<?= esc($start) ?>">
+                        <label for="end" class="mr-2">Sampai:</label>
+                        <input type="date" name="end" id="end" class="form-control mr-2" value="<?= esc($end) ?>">
+                        <button type="submit" class="btn btn-primary mr-2">Filter</button>
+                        <a href="<?= base_url('ledger/export/pdf?start=' . $start . '&end=' . $end) ?>" class="btn btn-danger mr-2 text-white">Export PDF</a>
+                        <a href="<?= base_url('ledger/export/excel?start=' . $start . '&end=' . $end) ?>" class="btn btn-success text-white">Export Excel</a>
+                    </form>
+                </div>
 
                 <?php if (!empty($ledger)) : ?>
                     <?php foreach ($ledger as $accountName => $data) : ?>

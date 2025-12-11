@@ -1,61 +1,54 @@
 <?= $this->extend('layouts/template/apps') ?>
 
-<?php $this->setVar('title', 'Kategori Pembayaran'); ?>
+<?php $this->setVar('title', 'Kelas'); ?>
 
 <?= $this->section('content') ?>
 <div class="row">
     <div class="col">
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
-                <h5 class="mb-0">Tabel Kategori Pembayaran</h5>
-                <a href="<?= base_url('payment-categories/create') ?>" class="btn btn-primary ml-auto">
-                    <i class="fas fa-plus"></i> Tambah Kategori
+                <h5 class="mb-0">Tabel Kelas</h5>
+                <a href="<?= base_url('classes/create') ?>" class="btn btn-primary ml-auto">
+                    <i class="fas fa-plus"></i> Tambah Kelas
                 </a>
             </div>
 
             <div class="card-body">
 
-                <form action="<?= base_url('payment-categories') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama kategori..." value="<?= esc($search ?? '') ?>">
+                <!-- Form Search -->
+                <form action="<?= base_url('classes') ?>" method="get" class="form-inline mb-3">
+                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama kelas..."
+                        value="<?= esc($search ?? '') ?>">
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
+                <!-- Table -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead class="thead-dark">
                             <tr>
                                 <th>#</th>
-                                <th>Nama Kategori</th>
-                                <th>Jumlah Default</th>
-                                <th>Tipe Tagihan</th>
-                                <th>Durasi (Bulan)</th>
+                                <th>Nama Kelas</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
+
                         <tbody>
-                            <?php if (!empty($paymentCategories)) : ?>
+                            <?php if (!empty($classes)) : ?>
                                 <?php
-                                $no = 1 + (10 * ($pager->getCurrentPage('payment_categories') - 1));
-                                foreach ($paymentCategories as $category) :
+                                $no = 1 + (10 * ($pager->getCurrentPage('classes') - 1));
+                                foreach ($classes as $class) :
                                 ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= esc($category['name']) ?></td>
-                                        <td><?= esc(number_format($category['default_amount'], 2)) ?></td>
-                                        <td><?= esc(ucfirst($category['billing_type'])) ?></td>
-                                        <td><?= esc($category['duration_months'] ?? '-') ?></td>
+                                        <td><?= esc($class['name']) ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
-                                                <!-- Edit kategori -->
-                                                <a href="<?= base_url('payment-categories/edit/' . $category['id']) ?>" class="btn btn-sm btn-warning mr-2">
+                                                <a href="<?= base_url('classes/edit/' . $class['id']) ?>" class="btn btn-sm btn-warning mr-2">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </a>
-                                                <!-- Tarif per Kelas -->
-                                                <a href="<?= base_url('payment-categories/class-rules/' . $category['id']) ?>" class="btn btn-sm btn-info mr-2">
-                                                    <i class="fas fa-layer-group"></i> Tarif per Kelas
-                                                </a>
-                                                <!-- Hapus kategori -->
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $category['id'] ?>)">
+
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $class['id'] ?>)">
                                                     <i class="fas fa-trash"></i> Hapus
                                                 </button>
                                             </div>
@@ -64,32 +57,29 @@
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="6" class="text-center">Tidak ada data kategori pembayaran.</td>
+                                    <td colspan="3" class="text-center">Tidak ada data kelas.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
                     </table>
                 </div>
 
+                <!-- Pagination -->
                 <div class="mt-3">
-                    <?= custom_pagination_with_query(
-                        $pager,
-                        ['q' => $search ?? ''],
-                        'payment_categories',
-                        'bootstrap_full'
-                    ) ?>
+                    <?= $pager->links('classes', 'bootstrap_full') ?>
                 </div>
+
             </div>
         </div>
     </div>
 </div>
 
-<!-- SweetAlert2 untuk konfirmasi hapus -->
+<!-- Konfirmasi Hapus SweetAlert2 -->
 <script>
     function confirmDelete(id) {
         Swal.fire({
             title: 'Yakin ingin menghapus?',
-            text: "Data kategori tidak dapat dikembalikan!",
+            text: "Data kelas tidak dapat dikembalikan!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -98,9 +88,10 @@
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
+
                 const form = document.createElement('form');
                 form.method = 'post';
-                form.action = '/payment-categories/delete/' + id;
+                form.action = '/classes/delete/' + id;
 
                 const csrf = document.createElement('input');
                 csrf.type = 'hidden';
@@ -109,13 +100,14 @@
 
                 form.appendChild(csrf);
                 document.body.appendChild(form);
+
                 form.submit();
             }
         });
     }
 </script>
 
-<!-- SweetAlert2 untuk pesan sukses -->
+<!-- Notifikasi Sukses -->
 <?php if (session()->getFlashdata('success')) : ?>
     <script>
         Swal.fire({

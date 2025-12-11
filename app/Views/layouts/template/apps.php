@@ -27,6 +27,24 @@
     <!-- ✅ Summernote CSS -->
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
 
+    <style>
+        .main-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        .sidebar {
+            height: calc(100vh - 57px);
+            /* Kurangi tinggi navbar adminlte */
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 30px;
+            /* biar scroll nyaman */
+        }
+    </style>
+
 </head>
 
 <body class="hold-transition sidebar-mini">
@@ -79,6 +97,8 @@
                     <nav class="mt-2">
                         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
+                            <!-- Menu Utama -->
+                            <li class="nav-header">MENU UTAMA</li>
                             <li class="nav-item">
                                 <a href="<?= site_url('home') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'home' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-home"></i>
@@ -107,20 +127,24 @@
                                 </a>
                             </li>
 
+                            <!-- Data Siswa & Santri -->
+                            <li class="nav-header">DATA SANTRI & SISWA</li>
                             <li class="nav-item">
                                 <a href="<?= site_url('students') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'students' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-user-graduate"></i>
-                                    <p>Siswa</p>
+                                    <p>Data Siswa/Santri</p>
                                 </a>
                             </li>
 
                             <li class="nav-item">
                                 <a href="<?= site_url('graduates') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'graduates' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-graduation-cap"></i>
-                                    <p>Lulus</p>
+                                    <p>Data Lulusan</p>
                                 </a>
                             </li>
 
+                            <!-- Keuangan -->
+                            <li class="nav-header">KEUANGAN</li>
                             <li class="nav-item">
                                 <a href="<?= site_url('billing') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'billing' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-receipt"></i>
@@ -135,14 +159,15 @@
                                 </a>
                             </li>
 
+                            <!-- Laporan -->
+                            <li class="nav-header">LAPORAN</li>
                             <li class="nav-item">
                                 <a href="<?= site_url('ledger') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'ledger' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-book-open"></i>
-                                    <p>Ledger Bank/Buku Besar</p>
+                                    <p>Buku Besar / Ledger</p>
                                 </a>
                             </li>
 
-                            <!-- Laporan Keuangan -->
                             <li class="nav-item">
                                 <a href="<?= site_url('financial-statement') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'financial-statement' && !service('uri')->getSegment(2) ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-chart-line"></i>
@@ -164,8 +189,10 @@
                                 </a>
                             </li>
 
-                            <!-- Menu Admin -->
+                            <!-- Admin -->
                             <?php if (session()->get('user_role') === 'admin'): ?>
+                                <li class="nav-header">ADMINISTRASI</li>
+
                                 <li class="nav-item">
                                     <a href="<?= site_url('user') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'user' ? 'active' : '' ?>">
                                         <i class="nav-icon fas fa-users-cog"></i>
@@ -223,7 +250,7 @@
 
         <footer class="main-footer">
             <div class="float-right d-none d-sm-block">
-                <b>Version</b> 3.2.0
+                <b>Version</b> 1.0.5
             </div>
             <strong>Copyright &copy; <?= date('Y') ?> <a href="#">FMIS</a>.</strong> All rights reserved.
         </footer>
@@ -246,7 +273,6 @@
     <!-- ✅ jQuery + Summernote JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
-
 </body>
 
 </html>

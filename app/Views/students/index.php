@@ -8,22 +8,40 @@
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
                 <h5 class="mb-0">Tabel Siswa</h5>
-                <a href="<?= base_url('students/create') ?>" class="btn btn-primary ml-auto">
-                    <i class="fas fa-plus"></i> Tambah Siswa
-                </a>
+                <div class="ml-auto">
+                    <a href="<?= base_url('students/create') ?>" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Tambah Siswa
+                    </a>
+                    <a href="<?= base_url('classes') ?>" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Kategori Kelas
+                    </a>
+                    <a href="<?= base_url('students/bulk-edit') ?>" class="btn btn-outline-warning">
+                        <i class="fas fa-edit"></i> Edit Sekaligus
+                    </a>
+                </div>
             </div>
 
             <div class="card-body">
 
                 <!-- Search -->
                 <form action="<?= base_url('students') ?>" method="get" class="form-inline mb-3">
-                    <input
-                        type="text"
-                        name="keyword"
-                        class="form-control mr-2"
+
+                    <!-- Search -->
+                    <input type="text" name="keyword" class="form-control mr-2"
                         placeholder="Cari nama / NIS..."
                         value="<?= esc($keyword ?? '') ?>">
-                    <button type="submit" class="btn btn-outline-primary">Cari</button>
+
+                    <!-- Filter Kelas -->
+                    <select name="class" class="form-control mr-2">
+                        <option value="">Semua Kelas</option>
+                        <?php foreach ($classes as $c): ?>
+                            <option value="<?= $c['id'] ?>">
+                                <?= esc($c['name']) ?>
+                            </option>
+                        <?php endforeach ?>
+                    </select>
+
+                    <button type="submit" class="btn btn-outline-primary">Filter</button>
                     <a href="<?= base_url('students') ?>" class="btn btn-outline-secondary ml-2">Reset</a>
                 </form>
 
@@ -51,7 +69,7 @@
                                         <td><?= $no++ ?></td>
                                         <td><?= esc($student['name']) ?></td>
                                         <td><?= esc($student['nis']) ?></td>
-                                        <td><?= esc($student['class']) ?></td>
+                                        <td><?= esc($student['class_name'] ?? '-') ?></td>
                                         <td>
                                             <?php if ($student['status']) : ?>
                                                 <span class="badge badge-success">Lulus</span>

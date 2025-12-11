@@ -334,7 +334,9 @@ class PaymentsController extends BaseController
             ]);
         }
 
-        // Hitung ulang semua payment student
+        $overpaid = 0; // total kelebihan bayar
+
+        // Ambil semua payment siswa, urutkan dari yang paling awal
         $payments = $this->paymentModel
             ->where('student_id', $studentId)
             ->orderBy('date', 'ASC')
@@ -342,6 +344,8 @@ class PaymentsController extends BaseController
 
         foreach ($payments as $p) {
             $totalPayment = (float)$p['total_amount'];
+
+            // Ambil bills yang belum lunas
             $bills = $this->billModel
                 ->where('student_id', $studentId)
                 ->whereIn('status', ['unpaid', 'partial'])
@@ -354,10 +358,12 @@ class PaymentsController extends BaseController
                 if ($totalPayment <= 0) break;
 
                 if ($totalPayment >= $remaining) {
+                    // Lunas
                     $bill['paid_amount'] += $remaining;
                     $bill['status'] = 'paid';
                     $totalPayment -= $remaining;
                 } else {
+                    // Sebagian
                     $bill['paid_amount'] += $totalPayment;
                     $bill['status'] = 'partial';
                     $totalPayment = 0;
@@ -368,7 +374,15 @@ class PaymentsController extends BaseController
                     'status'      => $bill['status']
                 ]);
             }
+
+            // Jika masih ada sisa setelah semua tagihan lunas, masuk ke overpaid
+            if ($totalPayment > 0) {
+                $overpaid += $totalPayment;
+            }
         }
+
+        // Simpan kelebihan bayar ke kolom students.overpaid
+        $this->studentModel->update($studentId, ['overpaid' => $overpaid]);
     }
 
     public function receipt($payment_id)

@@ -25,32 +25,28 @@ class JournalsController extends BaseController
     // List semua jurnal dengan search dan pagination
     public function index()
     {
+        $journalModel = new JournalModel();
+
+        // Ambil keyword pencarian
         $keyword = $this->request->getGet('keyword');
-        $perPage = $this->perPage;
-        $page    = $this->request->getVar('page_journals') ?? 1; // pagination group name nanti 'journals'
 
-        $builder = $this->journalModel;
+        // Query dasar dengan join ke users
+        $builder = $journalModel
+            ->select('journals.*, users.name AS user_name')
+            ->join('users', 'users.id = journals.user_id', 'left');
 
-        // Filter pencarian
+        // Jika ada keyword, terapkan filter
         if (!empty($keyword)) {
-            $builder = $builder
-                ->groupStart()
-                ->like('description', $keyword)
-                ->orLike('date', $keyword)
+            $builder->groupStart()
+                ->like('journals.description', $keyword)
+                ->orLike('journals.date', $keyword)
                 ->groupEnd();
         }
 
-        // Pastikan paginate dijalankan dari model, bukan builder hasil chaining
-        $journals = $builder
-            ->orderBy('date', 'DESC')
-            ->paginate($perPage, 'journals'); // gunakan group 'journals'
-
-        $data = [
-            'journals' => $journals,
-            'pager'    => $this->journalModel->pager, // object Pager
-            'keyword'  => $keyword,
-            'page'     => $page
-        ];
+        // Pagination (FINAL)
+        $data['journals'] = $builder->paginate(10, 'journals');
+        $data['pager'] = $journalModel->pager;
+        $data['keyword'] = $keyword;
 
         return view('journals/index', $data);
     }
