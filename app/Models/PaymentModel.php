@@ -18,7 +18,8 @@ class PaymentModel extends Model
         'total_amount',
         'date',
         'method',
-        'reference_file'
+        'reference_file',
+        'user_id'
     ];
 
     protected $useTimestamps = true;

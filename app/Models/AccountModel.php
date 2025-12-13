@@ -15,15 +15,52 @@ class AccountModel extends Model
     protected $allowedFields = [
         'code',
         'name',
-        'type'
+        'type',
+        'user_id'
     ];
 
+    protected $beforeFind   = ['filterByUser'];
+    protected $beforeInsert = ['addUserId'];
     protected $db;
 
     public function __construct()
     {
         parent::__construct();
         $this->db = \Config\Database::connect();
+    }
+
+    // -------------------------------------------------------------
+    // 1. FILTER DATA BERDASARKAN USER (OTOMATIS)
+    // -------------------------------------------------------------
+    protected function filterByUser(array $data)
+    {
+        // Pastikan builder ada
+        if (!isset($data['builder'])) return $data;
+
+        $builder = $data['builder'];
+        $session = session();
+        $role    = $session->get('user_role');
+        $userId  = $session->get('user_id');
+
+        if ($role === 'admin') {
+            // admin bisa filter user via GET?user_id=XX
+            $reqUser = service('request')->getGet('user_id');
+            if ($reqUser) $builder->where($this->table . '.user_id', $reqUser);
+            return $data;
+        }
+
+        // user biasa → hanya data miliknya
+        $builder->where($this->table . '.user_id', $userId);
+
+        return $data;
+    }
+
+    protected function addUserId(array $data)
+    {
+        if (!isset($data['data']['user_id'])) {
+            $data['data']['user_id'] = session()->get('user_id');
+        }
+        return $data;
     }
 
     /**

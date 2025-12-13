@@ -15,10 +15,22 @@
 
             <div class="card-body">
 
-                <!-- Form Search -->
+                <!-- Form Search & Filter User -->
                 <form action="<?= base_url('journals') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="keyword" class="form-control mr-2" placeholder="Cari deskripsi/tanggal..." value="<?= esc($keyword ?? '') ?>">
-                    <button type="submit" class="btn btn-outline-primary">Cari</button>
+
+                    <?php if (!empty($users)) : ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user) : ?>
+                                <option value="<?= $user['id'] ?>" <?= isset($filterUser) && $filterUser == $user['id'] ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif; ?>
+
+                    <button type="submit" class="btn btn-outline-primary">Filter</button>
                 </form>
 
                 <!-- Tabel Jurnal -->
@@ -72,9 +84,9 @@
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['keyword' => $keyword ?? ''],
-                        'journals',          // group sesuai paginate()
-                        'bootstrap_full'     // template
+                        ['keyword' => $keyword ?? '', 'user_id' => $filterUser ?? ''],
+                        'journals',
+                        'bootstrap_full'
                     ) ?>
                 </div>
             </div>

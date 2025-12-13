@@ -43,6 +43,12 @@ class Students extends Migration
                 'constraint' => '10,2',
                 'null'       => true,
             ],
+            'user_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

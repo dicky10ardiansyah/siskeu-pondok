@@ -38,13 +38,13 @@ function tanggalIndonesia($date)
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5>Detail Billing - <?= esc($student['name']) ?></h5>
-                <div>
-                    <a href="<?= base_url('billing') ?>" class="btn btn-secondary btn-sm">
+            <div class="card-header d-flex align-items-center w-100">
+                <h5 class="mb-0">Detail Billing - <?= esc($student['name']) ?></h5>
+                <div class="ml-auto">
+                    <a href="<?= base_url('billing') ?>" class="btn btn-primary">
                         <i class="fas fa-arrow-left"></i> Kembali
                     </a>
-                    <a href="<?= base_url('billing/pdf/' . $student['id']) ?>" class="btn btn-primary btn-sm" target="_blank">
+                    <a href="<?= base_url('billing/pdf/' . $student['id']) ?>" class="btn btn-outline-primary">
                         <i class="fas fa-file-pdf"></i> Cetak PDF
                     </a>
                 </div>

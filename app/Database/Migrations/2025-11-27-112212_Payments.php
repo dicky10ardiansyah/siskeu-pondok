@@ -54,6 +54,12 @@ class Payments extends Migration
                 'constraint' => '255',
                 'null'       => true,
             ],
+            'user_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

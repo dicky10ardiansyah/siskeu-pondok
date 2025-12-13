@@ -23,19 +23,31 @@
 
             <div class="card-body">
 
-                <!-- Search -->
+                <!-- Filter Form -->
                 <form action="<?= base_url('students') ?>" method="get" class="form-inline mb-3">
 
-                    <!-- Search -->
+                    <!-- Filter Keyword -->
                     <input type="text" name="keyword" class="form-control mr-2"
                         placeholder="Cari nama / NIS..."
                         value="<?= esc($keyword ?? '') ?>">
+
+                    <!-- Filter User (Admin Only) -->
+                    <?php if (!empty($users)) : ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">Semua User</option>
+                            <?php foreach ($users as $u): ?>
+                                <option value="<?= $u['id'] ?>" <?= ($selected_user ?? '') == $u['id'] ? 'selected' : '' ?>>
+                                    <?= esc($u['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif ?>
 
                     <!-- Filter Kelas -->
                     <select name="class" class="form-control mr-2">
                         <option value="">Semua Kelas</option>
                         <?php foreach ($classes as $c): ?>
-                            <option value="<?= $c['id'] ?>">
+                            <option value="<?= $c['id'] ?>" <?= ($class ?? '') == $c['id'] ? 'selected' : '' ?>>
                                 <?= esc($c['name']) ?>
                             </option>
                         <?php endforeach ?>
@@ -62,13 +74,14 @@
                         <tbody>
                             <?php if (!empty($students)) : ?>
                                 <?php
-                                $no = 1 + (5 * ($pager->getCurrentPage('students') - 1));
+                                $perPage = $pager->getPerPage('students');
+                                $no = 1 + ($perPage * ($pager->getCurrentPage('students') - 1));
                                 foreach ($students as $student) :
                                 ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td><?= esc($student['name']) ?></td>
-                                        <td><?= esc($student['nis']) ?></td>
+                                        <td><?= esc($student['nis'] ?? '-') ?></td>
                                         <td><?= esc($student['class_name'] ?? '-') ?></td>
                                         <td>
                                             <?php if ($student['status']) : ?>
@@ -80,8 +93,6 @@
                                         <td><?= esc($student['school_year'] ?? '-') ?></td>
                                         <td>
                                             <div class="d-flex justify-content-center">
-
-                                                <!-- Tombol Edit -->
                                                 <a href="<?= base_url('students/edit/' . $student['id']) ?>"
                                                     class="btn btn-sm btn-warning mr-2">
                                                     <i class="fas fa-edit"></i> Edit
@@ -92,13 +103,11 @@
                                                     <i class="fas fa-money-bill"></i> Tarif
                                                 </a>
 
-                                                <!-- Tombol Hapus -->
                                                 <button type="button"
                                                     class="btn btn-sm btn-danger"
                                                     onclick="confirmDelete(<?= $student['id'] ?>)">
                                                     <i class="fas fa-trash"></i> Hapus
                                                 </button>
-
                                             </div>
                                         </td>
                                     </tr>
@@ -116,7 +125,7 @@
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['keyword' => $keyword ?? ''],
+                        ['keyword' => $keyword ?? '', 'class' => $class ?? '', 'user_id' => $selected_user ?? ''],
                         'students',
                         'bootstrap_full'
                     ) ?>
@@ -157,7 +166,7 @@
     }
 </script>
 
-<!-- SweetAlert2 pesan sukses -->
+<!-- SweetAlert2 pesan sukses/error -->
 <?php if (session()->getFlashdata('success')) : ?>
     <script>
         Swal.fire({
@@ -165,6 +174,20 @@
             position: 'top-end',
             icon: 'success',
             title: '<?= session()->getFlashdata('success') ?>',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+    </script>
+<?php endif ?>
+
+<?php if (session()->getFlashdata('error')) : ?>
+    <script>
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: '<?= session()->getFlashdata('error') ?>',
             showConfirmButton: false,
             timer: 3000,
             timerProgressBar: true,

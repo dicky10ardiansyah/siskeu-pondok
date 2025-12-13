@@ -8,7 +8,7 @@ use App\Controllers\FinancialStatementController;
  */
 
 $routes->get('/develop', 'Home::develop');
-$routes->get('test-write', 'TestWrite::index');
+//$routes->get('test-write', 'TestWrite::index');
 // Auth --------------------------------------------------------------------------------
 $routes->get('/login', 'AuthController::login');
 $routes->post('/login_process', 'AuthController::login_process');

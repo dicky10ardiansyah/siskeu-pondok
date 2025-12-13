@@ -30,30 +30,29 @@ class LedgerController extends BaseController
      */
     protected function getLedgerData($start = null, $end = null)
     {
-        $accounts = $this->accountsModel->findAll();
-        $ledger = [];
+        $accounts = $this->accountsModel->findAll(); // otomatis filter user
+        $ledger   = [];
 
         foreach ($accounts as $account) {
             $entries = [];
 
             // Ambil journal entries untuk akun ini
-            $journalEntriesQuery = $this->journalEntriesModel->where('account_id', $account['id']);
-            $journalEntries = $journalEntriesQuery->findAll();
+            $journalEntries = $this->journalEntriesModel
+                ->where('account_id', $account['id'])
+                ->findAll(); // otomatis filter user
 
             foreach ($journalEntries as $je) {
-                $journalData = $this->journalModel->find($je['journal_id']);
-
-                // Lewati entry jika tanggal jurnal di luar range
+                $journalData = $this->journalModel->find($je['journal_id']); // otomatis filter user
                 if ($journalData) {
-                    $journalDate = $journalData['date']; // gunakan tanggal jurnal, bukan created_at
+                    $journalDate = $journalData['date'];
                     if ($start && $journalDate < $start) continue;
                     if ($end && $journalDate > $end) continue;
 
                     $entries[] = [
-                        'date' => $journalDate,
+                        'date'        => $journalDate,
                         'description' => $journalData['description'] ?? 'Jurnal',
-                        'debit' => $je['debit'],
-                        'credit' => $je['credit'],
+                        'debit'       => $je['debit'],
+                        'credit'      => $je['credit'],
                     ];
                 }
             }
@@ -62,20 +61,20 @@ class LedgerController extends BaseController
             usort($entries, fn($a, $b) => strtotime($a['date']) - strtotime($b['date']));
 
             // Hitung saldo berjalan
-            $balance = 0;
-            $totalDebit = 0;
+            $balance     = 0;
+            $totalDebit  = 0;
             $totalCredit = 0;
             foreach ($entries as &$entry) {
                 $balance += $entry['debit'] - $entry['credit'];
                 $entry['balance'] = $balance;
-                $totalDebit += $entry['debit'];
+                $totalDebit  += $entry['debit'];
                 $totalCredit += $entry['credit'];
             }
 
             $ledger[$account['name']] = [
-                'entries' => $entries,
-                'totalDebit' => $totalDebit,
-                'totalCredit' => $totalCredit,
+                'entries'      => $entries,
+                'totalDebit'   => $totalDebit,
+                'totalCredit'  => $totalCredit,
                 'totalBalance' => $balance,
             ];
         }
@@ -88,15 +87,14 @@ class LedgerController extends BaseController
      */
     public function index()
     {
-        $start = $this->request->getGet('start');
-        $end = $this->request->getGet('end');
-
+        $start  = $this->request->getGet('start');
+        $end    = $this->request->getGet('end');
         $ledger = $this->getLedgerData($start, $end);
 
         return view('ledger/index', [
             'ledger' => $ledger,
-            'start' => $start,
-            'end' => $end,
+            'start'  => $start,
+            'end'    => $end,
         ]);
     }
 
@@ -105,15 +103,14 @@ class LedgerController extends BaseController
      */
     public function exportPDF()
     {
-        $start = $this->request->getGet('start');
-        $end = $this->request->getGet('end');
-
+        $start  = $this->request->getGet('start');
+        $end    = $this->request->getGet('end');
         $ledger = $this->getLedgerData($start, $end);
 
         $html = view('ledger/pdf', [
             'ledger' => $ledger,
-            'start' => $start,
-            'end' => $end
+            'start'  => $start,
+            'end'    => $end
         ]);
 
         $dompdf = new Dompdf();
@@ -129,14 +126,13 @@ class LedgerController extends BaseController
      */
     public function exportExcel()
     {
-        $start = $this->request->getGet('start');
-        $end = $this->request->getGet('end');
-
+        $start  = $this->request->getGet('start');
+        $end    = $this->request->getGet('end');
         $ledger = $this->getLedgerData($start, $end);
 
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $row = 1;
+        $sheet       = $spreadsheet->getActiveSheet();
+        $row         = 1;
 
         foreach ($ledger as $accountName => $data) {
             // Nama akun
@@ -168,7 +164,7 @@ class LedgerController extends BaseController
             $sheet->setCellValue('C' . $row, 'Total');
             $sheet->setCellValue('D' . $row, $data['totalDebit']);
             $sheet->setCellValue('E' . $row, $data['totalCredit']);
-            $sheet->setCellValue('F' . $row, $data['totalBalance']); // saldo akhir
+            $sheet->setCellValue('F' . $row, $data['totalBalance']);
             $row += 2;
         }
 

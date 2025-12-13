@@ -28,6 +28,12 @@ class Accounts extends Migration
                 'constraint' => ['asset', 'income', 'expense', 'liability', 'equity'],
                 'null'       => true,
             ],
+            'user_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

@@ -1,19 +1,26 @@
 <?= $this->extend('layouts/template/apps') ?>
-
 <?php $this->setVar('title', 'Daftar Lulusan'); ?>
-
 <?= $this->section('content') ?>
+
 <div class="row">
     <div class="col">
         <div class="card">
             <div class="card-header d-flex align-items-center w-100">
                 <h5 class="mb-0">Tabel Lulusan</h5>
             </div>
-
             <div class="card-body">
-
-                <!-- Search -->
+                <!-- Search & Filter -->
                 <form method="get" class="form-inline mb-3">
+                    <!-- Filter User (opsional) -->
+                    <select name="user_id" class="form-control mr-2">
+                        <option value="">-- Semua User --</option>
+                        <?php foreach ($users as $u): ?>
+                            <option value="<?= esc($u['id']) ?>" <?= ($filterUser ?? '') == $u['id'] ? 'selected' : '' ?>>
+                                <?= esc($u['name']) ?>
+                            </option>
+                        <?php endforeach ?>
+                    </select>
+
                     <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama/NIS..." value="<?= esc($search ?? '') ?>">
 
                     <select name="class" class="form-control mr-2">
@@ -39,6 +46,7 @@
                     <button type="submit" class="btn btn-primary">Filter</button>
                 </form>
 
+                <!-- Tabel -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead class="thead-dark">
@@ -96,9 +104,7 @@
                     <div class="mt-3">
                         <?= $pager->links('graduates', 'bootstrap_full') ?>
                     </div>
-
                 </div>
-
             </div>
         </div>
     </div>

@@ -37,6 +37,12 @@ class StudentPaymentRules extends Migration
                 'after'      => 'amount',
                 'comment'    => '1 = wajib, 0 = opsional'
             ],
+            'user_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

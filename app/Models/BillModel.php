@@ -15,7 +15,8 @@ class BillModel extends Model
         'year',
         'amount',
         'paid_amount',
-        'status'
+        'status',
+        'user_id'
     ];
 
     protected $useTimestamps = false;

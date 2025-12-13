@@ -6,8 +6,17 @@ use CodeIgniter\Model;
 
 class StudentModel extends Model
 {
-    protected $table = 'students';
+    protected $table      = 'students';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['name', 'nis', 'class', 'status', 'school_year', 'overpaid'];
+    protected $allowedFields = [
+        'name',
+        'nis',
+        'class',
+        'status',
+        'school_year',
+        'overpaid',
+        'user_id'
+    ];
+
     protected $useTimestamps = true;
 }

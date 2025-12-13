@@ -17,6 +17,19 @@
 
                 <form action="<?= base_url('accounts') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="q" class="form-control mr-2" placeholder="Cari kode/nama akun..." value="<?= esc($search ?? '') ?>">
+
+                    <?php if (!empty($users)) : // hanya untuk admin 
+                    ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user) : ?>
+                                <option value="<?= $user['id'] ?>" <?= isset($filterUser) && $filterUser == $user['id'] ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif ?>
+
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 

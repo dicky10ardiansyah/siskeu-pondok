@@ -15,10 +15,22 @@
 
             <div class="card-body">
 
-                <!-- Search Form -->
+                <!-- Search & Filter Form -->
                 <form action="<?= base_url('transactions') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="search" class="form-control mr-2"
                         placeholder="Cari deskripsi/type..." value="<?= esc($keyword ?? '') ?>">
+
+                    <?php if (!empty($users)) : ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user) : ?>
+                                <option value="<?= $user['id'] ?>" <?= isset($filterUser) && $filterUser == $user['id'] ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif ?>
+
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -71,18 +83,13 @@
 
                                                 <?php if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) : ?>
                                                     <a href="<?= $url ?>" target="_blank">
-                                                        <img src="<?= $url ?>"
-                                                            class="img-thumbnail"
-                                                            style="width:60px;height:60px;object-fit:cover;">
+                                                        <img src="<?= $url ?>" class="img-thumbnail" style="width:60px;height:60px;object-fit:cover;">
                                                     </a>
                                                 <?php elseif ($ext === 'pdf') : ?>
-                                                    <a href="<?= $url ?>" target="_blank"
-                                                        class="d-flex align-items-center justify-content-center bg-light border rounded"
-                                                        style="width:60px;height:60px; text-decoration:none;">
+                                                    <a href="<?= $url ?>" target="_blank" class="d-flex align-items-center justify-content-center bg-light border rounded" style="width:60px;height:60px;text-decoration:none;">
                                                         <i class="fas fa-file-pdf fa-2x text-danger"></i>
                                                     </a>
                                                 <?php endif; ?>
-
                                             <?php else: ?>
                                                 -
                                             <?php endif; ?>
@@ -90,8 +97,7 @@
 
                                         <td>
                                             <div class="d-flex justify-content-center">
-                                                <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>"
-                                                    class="btn btn-sm btn-warning mr-2">Edit</a>
+                                                <a href="<?= base_url('transactions/edit/' . $trx['id']) ?>" class="btn btn-sm btn-warning mr-2">Edit</a>
                                                 <form action="<?= base_url('transactions/delete/' . $trx['id']) ?>" method="post" style="display:inline;" class="delete-form">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
@@ -114,7 +120,7 @@
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['search' => $keyword ?? ''],
+                        ['search' => $keyword ?? '', 'user_id' => $filterUser ?? ''],
                         'transactions',
                         'bootstrap_full'
                     ) ?>
@@ -132,7 +138,7 @@
 
         deleteForms.forEach(form => {
             form.addEventListener('submit', function(e) {
-                e.preventDefault(); // hentikan submit default
+                e.preventDefault();
                 Swal.fire({
                     title: 'Yakin ingin menghapus?',
                     text: "Data transaksi akan dihapus permanen!",
@@ -144,7 +150,7 @@
                     cancelButtonText: 'Batal'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        form.submit(); // submit form jika dikonfirmasi
+                        form.submit();
                     }
                 });
             });

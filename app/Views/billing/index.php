@@ -41,6 +41,17 @@
                 <form action="<?= base_url('billing') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="keyword" class="form-control mr-2" placeholder="Cari nama siswa..." value="<?= esc($keyword ?? '') ?>">
 
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">Semua User</option>
+                            <?php foreach ($users as $user): ?>
+                                <option value="<?= $user['id'] ?>" <?= (isset($filter_user_id) && $filter_user_id == $user['id']) ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+
                     <select name="filter_status" class="form-control mr-2">
                         <option value="">Semua Status</option>
                         <option value="Lunas" <?= (isset($filter_status) && $filter_status == 'Lunas') ? 'selected' : '' ?>>Lunas</option>

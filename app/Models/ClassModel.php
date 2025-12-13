@@ -12,7 +12,5 @@ class ClassModel extends Model
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
 
-    protected $allowedFields = [
-        'name'
-    ];
+    protected $allowedFields = ['name', 'user_id'];
 }

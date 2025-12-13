@@ -15,10 +15,22 @@
 
             <div class="card-body">
 
-                <!-- Form Search -->
+                <!-- Form Search & Filter -->
                 <form action="<?= base_url('classes') ?>" method="get" class="form-inline mb-3">
                     <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama kelas..."
                         value="<?= esc($search ?? '') ?>">
+
+                    <?php if (session()->get('user_role') === 'admin') : ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user) : ?>
+                                <option value="<?= $user['id'] ?>" <?= (isset($_GET['user_id']) && $_GET['user_id'] == $user['id']) ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif; ?>
+
                     <button type="submit" class="btn btn-outline-primary">Cari</button>
                 </form>
 
@@ -29,6 +41,9 @@
                             <tr>
                                 <th>#</th>
                                 <th>Nama Kelas</th>
+                                <?php if (session()->get('user_role') === 'admin') : ?>
+                                    <th>Owner</th>
+                                <?php endif; ?>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -42,6 +57,9 @@
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td><?= esc($class['name']) ?></td>
+                                        <?php if (session()->get('user_role') === 'admin') : ?>
+                                            <td><?= esc($class['user_name'] ?? '—') ?></td>
+                                        <?php endif; ?>
                                         <td>
                                             <div class="d-flex justify-content-center">
                                                 <a href="<?= base_url('classes/edit/' . $class['id']) ?>" class="btn btn-sm btn-warning mr-2">
@@ -57,7 +75,7 @@
                                 <?php endforeach ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="3" class="text-center">Tidak ada data kelas.</td>
+                                    <td colspan="<?= session()->get('user_role') === 'admin' ? 4 : 3 ?>" class="text-center">Tidak ada data kelas.</td>
                                 </tr>
                             <?php endif ?>
                         </tbody>
@@ -74,7 +92,6 @@
     </div>
 </div>
 
-<!-- Konfirmasi Hapus SweetAlert2 -->
 <script>
     function confirmDelete(id) {
         Swal.fire({
@@ -107,7 +124,6 @@
     }
 </script>
 
-<!-- Notifikasi Sukses -->
 <?php if (session()->getFlashdata('success')) : ?>
     <script>
         Swal.fire({
@@ -118,6 +134,35 @@
             showConfirmButton: false,
             timer: 3000,
             timerProgressBar: true,
+        });
+    </script>
+<?php endif ?>
+
+<!-- Notifikasi Error -->
+<?php if (session()->getFlashdata('error')) : ?>
+    <script>
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: '<?= session()->getFlashdata('error') ?>',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+    </script>
+<?php endif ?>
+
+<!-- Notifikasi Validasi Error -->
+<?php if (session()->getFlashdata('errors')) : ?>
+    <script>
+        let errors = <?= json_encode(session()->getFlashdata('errors')) ?>;
+        let message = Object.values(errors).join('<br>');
+        Swal.fire({
+            icon: 'error',
+            title: 'Terjadi kesalahan!',
+            html: message,
+            confirmButtonColor: '#d33',
         });
     </script>
 <?php endif ?>

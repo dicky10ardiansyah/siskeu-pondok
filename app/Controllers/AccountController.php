@@ -21,19 +21,51 @@ class AccountController extends BaseController
     // --------------------------------------------------
     public function index()
     {
-        $search = $this->request->getGet('q');
+        $search  = $this->request->getGet('q');
+        $filterUser = $this->request->getGet('user_id'); // filter untuk admin
         $perPage = 10;
+        $session = session();
+        $role    = $session->get('user_role');
+        $userId  = $session->get('user_id');
 
         $builder = $this->accountModel;
 
-        if ($search) {
-            $builder = $builder->like('code', $search)
-                ->orLike('name', $search);
+        // ----------------------------------------
+        // FILTER USER
+        // ----------------------------------------
+        if ($role === 'admin' && $filterUser) {
+            $builder = $builder->where('user_id', $filterUser);
+        } elseif ($role !== 'admin') {
+            // user biasa → hanya lihat akun miliknya
+            $builder = $builder->where('user_id', $userId);
         }
 
+        // ----------------------------------------
+        // SEARCH
+        // ----------------------------------------
+        if ($search) {
+            $builder = $builder->groupStart()
+                ->like('code', $search)
+                ->orLike('name', $search)
+                ->groupEnd();
+        }
+
+        // ----------------------------------------
+        // PAGINATION
+        // ----------------------------------------
         $data['accounts'] = $builder->paginate($perPage);
-        $data['pager'] = $this->accountModel->pager;
-        $data['search'] = $search;
+        $data['pager']    = $this->accountModel->pager;
+        $data['search']   = $search;
+        $data['filterUser'] = $filterUser;
+
+        // ----------------------------------------
+        // UNTUK ADMIN: AMBIL DAFTAR USER UNTUK DROPDOWN
+        // ----------------------------------------
+        if ($role === 'admin') {
+            $db = \Config\Database::connect();
+            $users = $db->table('users')->select('id, name')->orderBy('name')->get()->getResultArray();
+            $data['users'] = $users;
+        }
 
         return view('accounts/index', $data);
     }
@@ -61,7 +93,6 @@ class AccountController extends BaseController
 
         $codePrefix = $prefix[$type] ?? 'ACCX';
 
-        // Ambil kode terakhir sesuai tipe
         $lastAccount = $this->accountModel
             ->like('code', $codePrefix, 'after')
             ->orderBy('id', 'DESC')
@@ -88,7 +119,6 @@ class AccountController extends BaseController
         ];
 
         if (!$this->validate($validationRules)) {
-            // Gunakan session untuk error agar bisa tampil di view
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
@@ -96,9 +126,10 @@ class AccountController extends BaseController
         $code = $this->generateCode($type);
 
         $this->accountModel->save([
-            'code' => $code,
-            'name' => $this->request->getPost('name'),
-            'type' => $type,
+            'code'    => $code,
+            'name'    => $this->request->getPost('name'),
+            'type'    => $type,
+            'user_id' => session()->get('user_id') // pastikan user_id tersimpan
         ]);
 
         return redirect()->to('/accounts')->with('success', 'Akun baru berhasil ditambahkan!');
@@ -109,9 +140,9 @@ class AccountController extends BaseController
     // --------------------------------------------------
     public function edit($id)
     {
-        $account = $this->accountModel->find($id);
+        $account = $this->accountModel->where('id', $id)->first();
 
-        if (!$account) {
+        if (!$account || (session()->get('user_role') !== 'admin' && $account['user_id'] != session()->get('user_id'))) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Akun tidak ditemukan');
         }
 
@@ -123,8 +154,9 @@ class AccountController extends BaseController
     // --------------------------------------------------
     public function update($id)
     {
-        $account = $this->accountModel->find($id);
-        if (!$account) {
+        $account = $this->accountModel->where('id', $id)->first();
+
+        if (!$account || (session()->get('user_role') !== 'admin' && $account['user_id'] != session()->get('user_id'))) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Akun tidak ditemukan');
         }
 
@@ -152,12 +184,20 @@ class AccountController extends BaseController
 
         return redirect()->to('/accounts')->with('success', 'Data akun berhasil diupdate!');
     }
+
     // --------------------------------------------------
     // DELETE
     // --------------------------------------------------
     public function delete($id)
     {
+        $account = $this->accountModel->where('id', $id)->first();
+
+        if (!$account || (session()->get('user_role') !== 'admin' && $account['user_id'] != session()->get('user_id'))) {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Akun tidak ditemukan');
+        }
+
         $this->accountModel->delete($id);
+
         return redirect()->to('/accounts')->with('success', 'Data akun berhasil dihapus!');
     }
 }

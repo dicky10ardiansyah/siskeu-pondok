@@ -19,6 +19,12 @@ class Classes extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
             ],
+            'user_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

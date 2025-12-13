@@ -21,20 +21,36 @@ class ClassController extends BaseController
     // --------------------------------------------------
     public function index()
     {
-        $search = $this->request->getGet('q');
+        $search  = $this->request->getGet('q');
         $perPage = 10;
 
-        $builder = $this->classModel;
+        $model = $this->classModel;
 
-        if ($search) {
-            $builder = $builder->like('name', $search);
+        // BATASI: User biasa hanya lihat kelas miliknya
+        if (session()->get('user_role') !== 'admin') {
+            $model = $model->where('user_id', session()->get('user_id'));
+        } else {
+            // Admin bisa filter per user
+            $userFilter = $this->request->getGet('user_id');
+            if ($userFilter) {
+                $model = $model->where('user_id', $userFilter);
+            }
         }
 
-        $data['classes'] = $builder->paginate($perPage, 'classes'); // group = 'classes'
-        $data['pager']   = $this->classModel->pager;
-        $data['search']  = $search;
+        // Search nama kelas
+        if ($search) {
+            $model = $model->like('name', $search);
+        }
 
-        return view('classes/index', $data);
+        $classes = $model->orderBy('created_at', 'DESC')
+            ->paginate($perPage, 'classes');
+        $pager   = $model->pager;
+
+        return view('classes/index', [
+            'classes' => $classes,
+            'pager'   => $pager,
+            'search'  => $search,
+        ]);
     }
 
     // --------------------------------------------------
@@ -59,7 +75,8 @@ class ClassController extends BaseController
         }
 
         $this->classModel->save([
-            'name' => $this->request->getPost('name'),
+            'name'    => $this->request->getPost('name'),
+            'user_id' => session()->get('user_id'),
         ]);
 
         return redirect()->to('/classes')->with('success', 'Kelas baru berhasil ditambahkan!');
@@ -76,6 +93,11 @@ class ClassController extends BaseController
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Kelas tidak ditemukan');
         }
 
+        // BATASI: User biasa hanya bisa edit miliknya
+        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
+        }
+
         return view('classes/edit', ['class' => $class]);
     }
 
@@ -88,6 +110,10 @@ class ClassController extends BaseController
 
         if (!$class) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Kelas tidak ditemukan');
+        }
+
+        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
         }
 
         $validationRules = [
@@ -110,6 +136,16 @@ class ClassController extends BaseController
     // --------------------------------------------------
     public function delete($id)
     {
+        $class = $this->classModel->find($id);
+
+        if (!$class) {
+            return redirect()->to('/classes')->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
+        }
+
         $this->classModel->delete($id);
         return redirect()->to('/classes')->with('success', 'Data kelas berhasil dihapus!');
     }
