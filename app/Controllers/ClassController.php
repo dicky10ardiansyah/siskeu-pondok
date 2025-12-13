@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\UserModel;
 use App\Models\ClassModel;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -9,144 +10,100 @@ use CodeIgniter\HTTP\ResponseInterface;
 class ClassController extends BaseController
 {
     protected $classModel;
+    protected $userModel;
     protected $helpers = ['form'];
 
     public function __construct()
     {
         $this->classModel = new ClassModel();
+        $this->userModel  = new UserModel();
     }
 
-    // --------------------------------------------------
-    // INDEX + SEARCH + PAGINATION
-    // --------------------------------------------------
+    private function authorize($ownerId)
+    {
+        return session()->get('user_role') === 'admin'
+            || $ownerId == session()->get('user_id');
+    }
+
     public function index()
     {
         $search  = $this->request->getGet('q');
         $perPage = 10;
 
-        $model = $this->classModel;
+        $model = $this->classModel->getWithUser();
 
-        // BATASI: User biasa hanya lihat kelas miliknya
+        // User biasa hanya lihat data sendiri
         if (session()->get('user_role') !== 'admin') {
-            $model = $model->where('user_id', session()->get('user_id'));
-        } else {
-            // Admin bisa filter per user
-            $userFilter = $this->request->getGet('user_id');
-            if ($userFilter) {
-                $model = $model->where('user_id', $userFilter);
-            }
+            $model->where('classes.user_id', session()->get('user_id'));
+        }
+        // Admin boleh filter user
+        elseif ($userId = $this->request->getGet('user_id')) {
+            $model->where('classes.user_id', $userId);
         }
 
-        // Search nama kelas
         if ($search) {
-            $model = $model->like('name', $search);
+            $model->like('classes.name', $search);
         }
 
-        $classes = $model->orderBy('created_at', 'DESC')
-            ->paginate($perPage, 'classes');
-        $pager   = $model->pager;
-
-        return view('classes/index', [
-            'classes' => $classes,
-            'pager'   => $pager,
+        $data = [
+            'classes' => $model->paginate($perPage, 'classes'),
+            'pager'   => $model->pager,
             'search'  => $search,
-        ]);
-    }
-
-    // --------------------------------------------------
-    // FORM CREATE
-    // --------------------------------------------------
-    public function create()
-    {
-        return view('classes/create');
-    }
-
-    // --------------------------------------------------
-    // STORE
-    // --------------------------------------------------
-    public function store()
-    {
-        $validationRules = [
-            'name' => 'required|min_length[3]|max_length[255]',
         ];
 
-        if (!$this->validate($validationRules)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        // HANYA admin dapat list user
+        if (session()->get('user_role') === 'admin') {
+            $data['users'] = $this->userModel->findAll();
         }
 
+        return view('classes/index', $data);
+    }
+
+    public function store()
+    {
         $this->classModel->save([
             'name'    => $this->request->getPost('name'),
             'user_id' => session()->get('user_id'),
         ]);
 
-        return redirect()->to('/classes')->with('success', 'Kelas baru berhasil ditambahkan!');
+        return redirect()->to('/classes')->with('success', 'Kelas ditambahkan');
     }
 
-    // --------------------------------------------------
-    // FORM EDIT
-    // --------------------------------------------------
     public function edit($id)
     {
         $class = $this->classModel->find($id);
 
-        if (!$class) {
-            throw new \CodeIgniter\Exceptions\PageNotFoundException('Kelas tidak ditemukan');
+        if (!$class || !$this->authorize($class['user_id'])) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak');
         }
 
-        // BATASI: User biasa hanya bisa edit miliknya
-        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
-            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
-        }
-
-        return view('classes/edit', ['class' => $class]);
+        return view('classes/edit', compact('class'));
     }
 
-    // --------------------------------------------------
-    // UPDATE
-    // --------------------------------------------------
     public function update($id)
     {
         $class = $this->classModel->find($id);
 
-        if (!$class) {
-            throw new \CodeIgniter\Exceptions\PageNotFoundException('Kelas tidak ditemukan');
-        }
-
-        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
-            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
-        }
-
-        $validationRules = [
-            'name' => 'required|min_length[3]|max_length[255]',
-        ];
-
-        if (!$this->validate($validationRules)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        if (!$class || !$this->authorize($class['user_id'])) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak');
         }
 
         $this->classModel->update($id, [
             'name' => $this->request->getPost('name'),
         ]);
 
-        return redirect()->to('/classes')->with('success', 'Data kelas berhasil diupdate!');
+        return redirect()->to('/classes')->with('success', 'Kelas diperbarui');
     }
 
-    // --------------------------------------------------
-    // DELETE
-    // --------------------------------------------------
     public function delete($id)
     {
         $class = $this->classModel->find($id);
 
-        if (!$class) {
-            return redirect()->to('/classes')->with('error', 'Kelas tidak ditemukan.');
-        }
-
-        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
-            return redirect()->to('/classes')->with('error', 'Akses ditolak.');
+        if (!$class || !$this->authorize($class['user_id'])) {
+            return redirect()->to('/classes')->with('error', 'Akses ditolak');
         }
 
         $this->classModel->delete($id);
-        return redirect()->to('/classes')->with('success', 'Data kelas berhasil dihapus!');
+        return redirect()->to('/classes')->with('success', 'Kelas dihapus');
     }
 }

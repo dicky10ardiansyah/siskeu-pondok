@@ -11,6 +11,43 @@
             </div>
 
             <div class="card-body">
+
+                <div class="callout callout-info">
+                    <form method="get" class="row g-2 align-items-end">
+                        <!-- Filter Tahun -->
+                        <div class="col-md-3">
+                            <label for="year" class="form-label">Pilih Tahun</label>
+                            <select name="year" id="year" class="form-control">
+                                <option value="">-- Semua Tahun --</option>
+                                <?php for ($y = date('Y'); $y >= 2020; $y--) : ?>
+                                    <option value="<?= $y ?>" <?= request()->getGet('year') == $y ? 'selected' : '' ?>>
+                                        <?= $y ?>
+                                    </option>
+                                <?php endfor ?>
+                            </select>
+                        </div>
+
+                        <!-- Filter User (hanya admin) -->
+                        <?php if (isset($role) && $role === 'admin') : ?>
+                            <div class="col-md-3">
+                                <label for="user_id" class="form-label">Pilih User</label>
+                                <select name="user_id" id="user_id" class="form-control">
+                                    <option value="">-- Semua User --</option>
+                                    <?php foreach ($users as $user) : ?>
+                                        <option value="<?= $user['id'] ?>" <?= ($selected_user == $user['id']) ? 'selected' : '' ?>>
+                                            <?= esc($user['name']) ?>
+                                        </option>
+                                    <?php endforeach ?>
+                                </select>
+                            </div>
+                        <?php endif ?>
+
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover">
                         <thead class="thead-dark">

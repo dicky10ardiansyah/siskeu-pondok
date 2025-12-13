@@ -5,27 +5,48 @@
 <section class="content">
     <div class="container-fluid">
 
-        <!-- Filter Tanggal -->
+        <!-- Filter Tanggal & User -->
         <div class="row mb-3">
             <div class="col-md-12">
                 <div class="callout callout-info">
                     <form method="get">
                         <div class="form-row">
+
+                            <!-- Start Date -->
                             <div class="col">
-                                <input type="date" name="start_date" class="form-control" value="<?= esc($start_date) ?>" placeholder="Start Date">
+                                <input type="date" name="start_date" class="form-control" value="<?= esc($start_date) ?>">
                             </div>
+
+                            <!-- End Date -->
                             <div class="col">
-                                <input type="date" name="end_date" class="form-control" value="<?= esc($end_date) ?>" placeholder="End Date">
+                                <input type="date" name="end_date" class="form-control" value="<?= esc($end_date) ?>">
                             </div>
+
+                            <!-- User Select (hanya admin) -->
+                            <?php if ($role === 'admin'): ?>
+                                <div class="col">
+                                    <select name="user_id" class="form-control">
+                                        <option value="">-- Semua User --</option>
+                                        <?php foreach ($users as $user): ?>
+                                            <option value="<?= $user['id'] ?>" <?= ($selected_user == $user['id']) ? 'selected' : '' ?>>
+                                                <?= esc($user['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            <?php endif; ?>
+
                             <div class="col">
                                 <button type="submit" class="btn btn-primary">Filter</button>
                             </div>
+
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
+        <!-- Bagian Tabel Neraca (Aset, Liabilitas, Ekuitas, Income, Expense) -->
         <div class="row">
 
             <!-- ASET -->
@@ -94,7 +115,6 @@
                 </div>
             </div>
 
-            <!-- EKUITAS -->
             <!-- EKUITAS -->
             <div class="col-md-4">
                 <div class="card card-primary">

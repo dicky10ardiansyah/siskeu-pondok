@@ -16,8 +16,30 @@
             <div class="card-body">
 
                 <form action="<?= base_url('payment-categories') ?>" method="get" class="form-inline mb-3">
-                    <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama kategori..." value="<?= esc($search ?? '') ?>">
-                    <button type="submit" class="btn btn-outline-primary">Cari</button>
+
+                    <input type="text"
+                        name="q"
+                        class="form-control mr-2"
+                        placeholder="Cari nama kategori..."
+                        value="<?= esc($search ?? '') ?>">
+
+                    <?php if (session()->get('user_role') === 'admin') : ?>
+                        <select name="user_id"
+                            class="form-control mr-2"
+                            onchange="this.form.submit()">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user) : ?>
+                                <option value="<?= $user['id'] ?>"
+                                    <?= ($filterUser == $user['id']) ? 'selected' : '' ?>>
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif ?>
+
+                    <button type="submit" class="btn btn-outline-primary">
+                        Cari
+                    </button>
                 </form>
 
                 <div class="table-responsive">
@@ -74,7 +96,10 @@
                 <div class="mt-3">
                     <?= custom_pagination_with_query(
                         $pager,
-                        ['q' => $search ?? ''],
+                        [
+                            'q'       => $search ?? '',
+                            'user_id' => $filterUser ?? ''
+                        ],
                         'payment_categories',
                         'bootstrap_full'
                     ) ?>

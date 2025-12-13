@@ -18,7 +18,7 @@ class JournalModel extends Model
         'user_id'
     ];
 
-    // Tambahkan: Model Events
+    // Model Events
     protected $beforeFind   = ['filterByUser'];
     protected $beforeInsert = ['addUserId'];
 
@@ -35,20 +35,20 @@ class JournalModel extends Model
         $builder = $data['builder'];
 
         $session = session();
-        $role    = $session->get('user_role');
+        $role    = $session->get('user_role'); // admin / user
         $userId  = $session->get('user_id');
 
         // ADMIN → bisa melihat semua atau filter manual via GET ?user_id=
         if ($role === 'admin') {
             $reqUser = service('request')->getGet('user_id');
             if ($reqUser) {
-                $builder->where('students.user_id', $reqUser);
+                $builder->where('journals.user_id', $reqUser); // perbaikan dari students.user_id
             }
             return $data;
         }
 
         // USER BIASA → hanya lihat data miliknya
-        $builder->where('students.user_id', $userId);
+        $builder->where('journals.user_id', $userId);
 
         return $data;
     }

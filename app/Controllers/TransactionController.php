@@ -78,15 +78,16 @@ class TransactionController extends BaseController
         return view('transactions/index', $data);
     }
 
-    // --------------------------------------------------
-    // FORM CREATE
-    // --------------------------------------------------
     public function create()
     {
         $allAccounts = $this->transactions->getAccounts();
+        $userId = session()->get('user_id');
 
-        $debitAccounts = array_filter($allAccounts, fn($a) => in_array($a['type'], ['asset', 'expense']));
-        $creditAccounts = array_filter($allAccounts, fn($a) => in_array($a['type'], ['asset', 'liability', 'equity', 'income']));
+        // Filter akun sesuai user
+        $userAccounts = array_filter($allAccounts, fn($a) => $a['user_id'] == $userId);
+
+        $debitAccounts  = array_filter($userAccounts, fn($a) => in_array($a['type'], ['asset', 'expense']));
+        $creditAccounts = array_filter($userAccounts, fn($a) => in_array($a['type'], ['asset', 'liability', 'equity', 'income']));
 
         return view('transactions/create', [
             'debitAccounts'  => $debitAccounts,
@@ -94,13 +95,11 @@ class TransactionController extends BaseController
         ]);
     }
 
-    // --------------------------------------------------
-    // STORE TRANSAKSI + UPLOAD BUKTI + JURNAL OTOMATIS
-    // --------------------------------------------------
     public function store()
     {
         $post = $this->request->getPost();
         $file = $this->request->getFile('proof');
+        $userId = session()->get('user_id');
 
         // Validasi
         $validationRules = [
@@ -117,7 +116,15 @@ class TransactionController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        // Upload file
+        // Validasi kepemilikan akun
+        if (
+            !$this->transactions->accountBelongsToUser($post['debit_account_id'], $userId) ||
+            !$this->transactions->accountBelongsToUser($post['credit_account_id'], $userId)
+        ) {
+            return redirect()->back()->withInput()->with('error', 'Akun tidak valid untuk user ini.');
+        }
+
+        // Upload file (opsional)
         $proofPath = null;
         $uploadDir = ROOTPATH . 'public/uploads/proof/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0775, true);
@@ -137,20 +144,20 @@ class TransactionController extends BaseController
             'description'       => $post['description'],
             'amount'            => $post['amount'],
             'date'              => $post['date'],
-            'user_id'           => session()->get('user_id'),
+            'user_id'           => $userId,
             'debit_account_id'  => $post['debit_account_id'],
             'credit_account_id' => $post['credit_account_id'],
             'proof'             => $proofPath,
         ];
-
         $this->transactions->insert($transactionData);
         $transactionId = $this->transactions->getInsertID();
 
         // Buat jurnal
         $journalData = [
-            'date'        => $post['date'],
-            'description' => $post['description'],
-            'user_id'     => session()->get('user_id'),
+            'date'           => $post['date'],
+            'description'    => $post['description'],
+            'user_id'        => $userId, // pastikan user_id ada
+            'transaction_id' => $transactionId,
         ];
         $this->journals->insert($journalData);
         $journalId = $this->journals->getInsertID();
@@ -162,12 +169,14 @@ class TransactionController extends BaseController
                 'account_id' => $post['debit_account_id'],
                 'debit'      => $post['amount'],
                 'credit'     => 0,
+                'user_id'    => $userId, // tambahkan user_id
             ],
             [
                 'journal_id' => $journalId,
                 'account_id' => $post['credit_account_id'],
                 'debit'      => 0,
                 'credit'     => $post['amount'],
+                'user_id'    => $userId, // tambahkan user_id
             ]
         ];
         $this->journalEntries->insertBatch($journalEntries);
@@ -181,9 +190,6 @@ class TransactionController extends BaseController
         return redirect()->to('/transactions')->with('success', 'Transaksi berhasil disimpan dan jurnal dibuat.');
     }
 
-    // --------------------------------------------------
-    // FORM EDIT
-    // --------------------------------------------------
     public function edit($id)
     {
         $transaction = $this->transactions->find($id);
@@ -192,29 +198,34 @@ class TransactionController extends BaseController
         }
 
         $allAccounts = $this->transactions->getAccounts();
-        $debitAccounts  = array_filter($allAccounts, fn($a) => in_array($a['type'], ['asset', 'expense']));
-        $creditAccounts = array_filter($allAccounts, fn($a) => in_array($a['type'], ['asset', 'liability', 'equity', 'income']));
+        $userId = session()->get('user_id');
+
+        // Filter akun sesuai user
+        $userAccounts = array_filter($allAccounts, fn($a) => $a['user_id'] == $userId);
+
+        $debitAccounts  = array_filter($userAccounts, fn($a) => in_array($a['type'], ['asset', 'expense']));
+        $creditAccounts = array_filter($userAccounts, fn($a) => in_array($a['type'], ['asset', 'liability', 'equity', 'income']));
 
         return view('transactions/edit', [
-            'transaction'   => $transaction,
-            'debitAccounts' => $debitAccounts,
+            'transaction'    => $transaction,
+            'debitAccounts'  => $debitAccounts,
             'creditAccounts' => $creditAccounts,
         ]);
     }
 
-    // --------------------------------------------------
-    // UPDATE TRANSAKSI + UPLOAD BUKTI + JURNAL OTOMATIS
-    // --------------------------------------------------
     public function update($id)
     {
         $transaction = $this->transactions->find($id);
-        if (!$transaction || (session()->get('user_role') !== 'admin' && $transaction['user_id'] != session()->get('user_id'))) {
+        $userId = session()->get('user_id');
+
+        if (!$transaction || (session()->get('user_role') !== 'admin' && $transaction['user_id'] != $userId)) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Transaksi tidak ditemukan');
         }
 
         $post = $this->request->getPost();
         $file = $this->request->getFile('proof');
 
+        // Validasi
         $validationRules = [
             'date' => 'required',
             'description' => 'required',
@@ -229,15 +240,24 @@ class TransactionController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // Validasi kepemilikan akun
+        if (
+            !$this->transactions->accountBelongsToUser($post['debit_account_id'], $userId) ||
+            !$this->transactions->accountBelongsToUser($post['credit_account_id'], $userId)
+        ) {
+            return redirect()->back()->withInput()->with('error', 'Akun tidak valid untuk user ini.');
+        }
+
+        // Upload file (opsional)
         $proofPath = $transaction['proof'] ?? null;
         $uploadDir = ROOTPATH . 'public/uploads/proof/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0775, true);
 
         if ($file && $file->isValid() && !$file->hasMoved()) {
             if ($proofPath && file_exists(ROOTPATH . 'public/' . $proofPath)) unlink(ROOTPATH . 'public/' . $proofPath);
-            $randomName = $file->getRandomName();
-            $file->move($uploadDir, $randomName);
-            $proofPath = 'uploads/proof/' . $randomName;
+            $fileName = $file->getRandomName();
+            $file->move($uploadDir, $fileName);
+            $proofPath = 'uploads/proof/' . $fileName;
         }
 
         $db = \Config\Database::connect();
@@ -256,7 +276,7 @@ class TransactionController extends BaseController
         $this->transactions->update($id, $transactionData);
 
         // Hapus jurnal lama
-        $journal = $this->journals->where('description', $transaction['description'])->first();
+        $journal = $this->journals->where('transaction_id', $id)->where('user_id', $userId)->first();
         if ($journal) {
             $this->journalEntries->where('journal_id', $journal['id'])->delete();
             $this->journals->delete($journal['id']);
@@ -264,9 +284,10 @@ class TransactionController extends BaseController
 
         // Buat jurnal baru
         $journalData = [
-            'date'        => $post['date'],
-            'description' => $post['description'],
-            'user_id'     => session()->get('user_id'),
+            'date'           => $post['date'],
+            'description'    => $post['description'],
+            'user_id'        => $userId, // pastikan ada user_id
+            'transaction_id' => $id,
         ];
         $this->journals->insert($journalData);
         $journalId = $this->journals->getInsertID();
@@ -278,12 +299,14 @@ class TransactionController extends BaseController
                 'account_id' => $post['debit_account_id'],
                 'debit'      => $post['amount'],
                 'credit'     => 0,
+                'user_id'    => $userId,
             ],
             [
                 'journal_id' => $journalId,
                 'account_id' => $post['credit_account_id'],
                 'debit'      => 0,
                 'credit'     => $post['amount'],
+                'user_id'    => $userId,
             ]
         ];
         $this->journalEntries->insertBatch($journalEntries);
@@ -297,13 +320,12 @@ class TransactionController extends BaseController
         return redirect()->to('/transactions')->with('success', 'Transaksi berhasil diupdate dan jurnal diperbarui.');
     }
 
-    // --------------------------------------------------
-    // DELETE TRANSAKSI + JURNAL + BUKTI
-    // --------------------------------------------------
     public function delete($id)
     {
         $transaction = $this->transactions->find($id);
-        if (!$transaction || (session()->get('user_role') !== 'admin' && $transaction['user_id'] != session()->get('user_id'))) {
+        $userId = session()->get('user_id');
+
+        if (!$transaction || (session()->get('user_role') !== 'admin' && $transaction['user_id'] != $userId)) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Transaksi tidak ditemukan');
         }
 
@@ -318,8 +340,8 @@ class TransactionController extends BaseController
         // Hapus transaksi
         $this->transactions->delete($id);
 
-        // Hapus jurnal & entries
-        $journal = $this->journals->where('description', $transaction['description'])->first();
+        // Hapus jurnal & entries berdasarkan transaction_id + user_id
+        $journal = $this->journals->where('transaction_id', $id)->where('user_id', $userId)->first();
         if ($journal) {
             $this->journalEntries->where('journal_id', $journal['id'])->delete();
             $this->journals->delete($journal['id']);

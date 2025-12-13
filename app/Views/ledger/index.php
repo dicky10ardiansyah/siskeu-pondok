@@ -10,16 +10,31 @@
             </div>
 
             <div class="card-body">
-                <!-- Filter Tanggal & Export -->
+                <!-- Filter Tanggal, User & Export -->
                 <div class="callout callout-info">
                     <form action="<?= base_url('ledger') ?>" method="get" class="form-inline mb-3">
                         <label for="start" class="mr-2">Dari:</label>
                         <input type="date" name="start" id="start" class="form-control mr-2" value="<?= esc($start) ?>">
+
                         <label for="end" class="mr-2">Sampai:</label>
                         <input type="date" name="end" id="end" class="form-control mr-2" value="<?= esc($end) ?>">
+
+                        <!-- Dropdown User (hanya untuk admin) -->
+                        <?php if (isset($role) && $role === 'admin') : ?>
+                            <label for="user_id" class="mr-2">User:</label>
+                            <select name="user_id" id="user_id" class="form-control mr-2">
+                                <option value="">-- Semua User --</option>
+                                <?php foreach ($users as $user) : ?>
+                                    <option value="<?= $user['id'] ?>" <?= ($selected_user == $user['id']) ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        <?php endif ?>
+
                         <button type="submit" class="btn btn-primary mr-2">Filter</button>
-                        <a href="<?= base_url('ledger/export/pdf?start=' . $start . '&end=' . $end) ?>" class="btn btn-danger mr-2 text-white">Export PDF</a>
-                        <a href="<?= base_url('ledger/export/excel?start=' . $start . '&end=' . $end) ?>" class="btn btn-success text-white">Export Excel</a>
+                        <a href="<?= base_url('ledger/export/pdf?start=' . $start . '&end=' . $end . ($selected_user ? '&user_id=' . $selected_user : '')) ?>" class="btn btn-danger mr-2 text-white" target="_blank">Export PDF</a>
+                        <a href="<?= base_url('ledger/export/excel?start=' . $start . '&end=' . $end . ($selected_user ? '&user_id=' . $selected_user : '')) ?>" class="btn btn-success text-white">Export Excel</a>
                     </form>
                 </div>
 

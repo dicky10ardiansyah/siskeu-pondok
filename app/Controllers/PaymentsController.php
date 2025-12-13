@@ -94,17 +94,18 @@ class PaymentsController extends BaseController
         $selectedStudentId = $this->request->getGet('student_id');
 
         // Ambil student sesuai role
-        if ($role === 'admin') {
-            $data['students'] = $this->studentModel->findAll();
-        } else {
-            $data['students'] = $this->studentModel->where('user_id', $userId)->findAll();
-        }
+        $data['students'] = $role === 'admin'
+            ? $this->studentModel->findAll()
+            : $this->studentModel->where('user_id', $userId)->findAll();
 
         $data['selectedStudentId'] = $selectedStudentId;
 
-        $allAccounts = $this->accountModel->findAll();
+        // Ambil account sesuai role
+        $allAccounts = $role === 'admin'
+            ? $this->accountModel->findAll()
+            : $this->accountModel->where('user_id', $userId)->findAll();
 
-        $data['debitAccounts'] = array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense']));
+        $data['debitAccounts']  = array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense']));
         $data['creditAccounts'] = array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['liability', 'equity', 'income']));
 
         $data['journals'] = $this->journalModel->findAll();
@@ -117,33 +118,53 @@ class PaymentsController extends BaseController
     // --------------------------------------------------
     public function store()
     {
+        $session = session();
+        $role = $session->get('user_role');
+        $userId = $session->get('user_id');
+
         $validationRules = [
-            'student_id'       => 'required|integer',
-            'debit_account_id' => 'required|integer',
+            'student_id'        => 'required|integer',
+            'debit_account_id'  => 'required|integer',
             'credit_account_id' => 'required|integer',
-            'total_amount'     => 'required|decimal',
-            'date'             => 'required',
-            'method'           => 'permit_empty|string',
-            'reference'        => 'permit_empty|string',
-            'reference_file'   => 'permit_empty|uploaded[reference_file]|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
+            'total_amount'      => 'required|decimal',
+            'date'              => 'required',
+            'method'            => 'permit_empty|string',
+            'reference'         => 'permit_empty|string',
+            'reference_file'    => 'permit_empty|uploaded[reference_file]|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
         ];
 
         if (!$this->validate($validationRules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $session = session();
-        $userId = $session->get('user_id');
+        // Validasi student
+        $studentId = $this->request->getPost('student_id');
+        $student = $this->studentModel->find($studentId);
+        if (!$student || ($role !== 'admin' && $student['user_id'] != $userId)) {
+            return redirect()->back()->withInput()->with('error', 'Student tidak valid atau bukan milik Anda');
+        }
+
+        // Validasi akun
+        $debitAccount  = $this->accountModel->find($this->request->getPost('debit_account_id'));
+        $creditAccount = $this->accountModel->find($this->request->getPost('credit_account_id'));
+
+        if ($role !== 'admin') {
+            if (($debitAccount && $debitAccount['user_id'] != $userId) ||
+                ($creditAccount && $creditAccount['user_id'] != $userId)
+            ) {
+                return redirect()->back()->withInput()->with('error', 'Akun tidak valid atau bukan milik Anda');
+            }
+        }
 
         $paymentData = [
-            'student_id'       => $this->request->getPost('student_id'),
-            'debit_account_id' => $this->request->getPost('debit_account_id'),
+            'student_id'        => $studentId,
+            'debit_account_id'  => $this->request->getPost('debit_account_id'),
             'credit_account_id' => $this->request->getPost('credit_account_id'),
-            'total_amount'     => $this->request->getPost('total_amount'),
-            'date'             => $this->request->getPost('date'),
-            'method'           => $this->request->getPost('method'),
-            'reference'        => $this->request->getPost('reference'),
-            'user_id'          => $userId
+            'total_amount'      => $this->request->getPost('total_amount'),
+            'date'              => $this->request->getPost('date'),
+            'method'            => $this->request->getPost('method'),
+            'reference'         => $this->request->getPost('reference'),
+            'user_id'           => $userId
         ];
 
         $file = $this->request->getFile('reference_file');
@@ -156,10 +177,9 @@ class PaymentsController extends BaseController
         $this->paymentModel->save($paymentData);
         $paymentId = $this->paymentModel->getInsertID();
 
-        $student = $this->studentModel->find($paymentData['student_id']);
+        // Buat jurnal
         $refText = $paymentData['reference'] ? " - Ref: {$paymentData['reference']}" : "";
         $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
-
         $journalId = $this->journalModel->insert([
             'date' => $paymentData['date'],
             'description' => $description,
@@ -181,7 +201,7 @@ class PaymentsController extends BaseController
             'credit' => $paymentData['total_amount'],
         ]);
 
-        $this->updateBills($paymentData['student_id']);
+        $this->updateBills($studentId);
 
         return redirect()->to('/payments')->with('success', 'Payment berhasil disimpan!');
     }
@@ -192,9 +212,7 @@ class PaymentsController extends BaseController
     public function edit($id)
     {
         $payment = $this->paymentModel->find($id);
-        if (!$payment) {
-            throw new \CodeIgniter\Exceptions\PageNotFoundException('Pembayaran tidak ditemukan');
-        }
+        if (!$payment) throw new \CodeIgniter\Exceptions\PageNotFoundException('Pembayaran tidak ditemukan');
 
         $session = session();
         $role = $session->get('user_role');
@@ -204,16 +222,19 @@ class PaymentsController extends BaseController
             throw new \CodeIgniter\Exceptions\PageForbiddenException('Tidak boleh mengakses pembayaran orang lain');
         }
 
-        $allAccounts = $this->accountModel->findAll();
+        // Ambil accounts sesuai user
+        $allAccounts = $role === 'admin'
+            ? $this->accountModel->findAll()
+            : $this->accountModel->where('user_id', $userId)->findAll();
 
         $data = [
-            'payment'       => $payment,
-            'students'      => $role === 'admin'
+            'payment'        => $payment,
+            'students'       => $role === 'admin'
                 ? $this->studentModel->findAll()
                 : $this->studentModel->where('user_id', $userId)->findAll(),
-            'debitAccounts' => array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense'])),
+            'debitAccounts'  => array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense'])),
             'creditAccounts' => array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['liability', 'equity', 'income'])),
-            'journals'      => $this->journalModel->findAll(),
+            'journals'       => $this->journalModel->findAll(),
         ];
 
         return view('payments/edit', $data);
@@ -236,29 +257,47 @@ class PaymentsController extends BaseController
         }
 
         $validationRules = [
-            'student_id'       => 'required|integer',
-            'debit_account_id' => 'required|integer',
+            'student_id'        => 'required|integer',
+            'debit_account_id'  => 'required|integer',
             'credit_account_id' => 'required|integer',
-            'total_amount'     => 'required|decimal',
-            'date'             => 'required',
-            'method'           => 'permit_empty|string',
-            'reference'        => 'permit_empty|string',
-            'reference_file'   => 'permit_empty|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
+            'total_amount'      => 'required|decimal',
+            'date'              => 'required',
+            'method'            => 'permit_empty|string',
+            'reference'         => 'permit_empty|string',
+            'reference_file'    => 'permit_empty|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
         ];
 
         if (!$this->validate($validationRules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // Validasi student
+        $studentId = $this->request->getPost('student_id');
+        $student = $this->studentModel->find($studentId);
+        if (!$student || ($role !== 'admin' && $student['user_id'] != $userId)) {
+            return redirect()->back()->withInput()->with('error', 'Student tidak valid atau bukan milik Anda');
+        }
+
+        // Validasi akun
+        $debitAccount  = $this->accountModel->find($this->request->getPost('debit_account_id'));
+        $creditAccount = $this->accountModel->find($this->request->getPost('credit_account_id'));
+        if ($role !== 'admin') {
+            if (($debitAccount && $debitAccount['user_id'] != $userId) ||
+                ($creditAccount && $creditAccount['user_id'] != $userId)
+            ) {
+                return redirect()->back()->withInput()->with('error', 'Akun tidak valid atau bukan milik Anda');
+            }
+        }
+
         $data = [
-            'student_id'       => $this->request->getPost('student_id'),
-            'debit_account_id' => $this->request->getPost('debit_account_id'),
+            'student_id'        => $studentId,
+            'debit_account_id'  => $this->request->getPost('debit_account_id'),
             'credit_account_id' => $this->request->getPost('credit_account_id'),
-            'total_amount'     => $this->request->getPost('total_amount'),
-            'date'             => $this->request->getPost('date'),
-            'method'           => $this->request->getPost('method'),
-            'reference'        => $this->request->getPost('reference'),
-            'user_id'          => $userId,
+            'total_amount'      => $this->request->getPost('total_amount'),
+            'date'              => $this->request->getPost('date'),
+            'method'            => $this->request->getPost('method'),
+            'reference'         => $this->request->getPost('reference'),
+            'user_id'           => $userId,
         ];
 
         $file = $this->request->getFile('reference_file');
@@ -274,7 +313,6 @@ class PaymentsController extends BaseController
         $this->paymentModel->update($id, $data);
 
         if ($payment['journal_id']) {
-            $student = $this->studentModel->find($data['student_id']);
             $refText = $data['reference'] ? " - Ref: {$data['reference']}" : "";
             $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
             $this->journalModel->update($payment['journal_id'], [
@@ -299,7 +337,7 @@ class PaymentsController extends BaseController
             ]);
         }
 
-        $this->updateBills($data['student_id']);
+        $this->updateBills($studentId);
 
         return redirect()->to('/payments')->with('success', 'Payment berhasil diperbarui!');
     }
@@ -340,60 +378,82 @@ class PaymentsController extends BaseController
         return redirect()->to('/payments')->with('success', 'Payment berhasil dihapus beserta file referensi dan tagihan diperbarui!');
     }
 
-    // --------------------------------------------------
-    // FUNCTION UTILITY UPDATE BILLS
-    // --------------------------------------------------
-    private function updateBills($studentId)
+    protected function updateBills($studentId)
     {
-        $allBills = $this->billModel->where('student_id', $studentId)->findAll();
-        foreach ($allBills as $bill) {
-            $this->billModel->update($bill['id'], [
-                'paid_amount' => 0,
-                'status'      => 'unpaid'
-            ]);
-        }
+        // Ambil semua tagihan siswa urut berdasarkan tanggal/ID
+        $bills = $this->billModel
+            ->where('student_id', $studentId)
+            ->orderBy('year', 'ASC')
+            ->orderBy('month', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->findAll();
 
-        $overpaid = 0;
+        if (!$bills) return;
 
-        $payments = $this->paymentModel
+        // Ambil semua pembayaran baru siswa
+        $payments = (new \App\Models\PaymentModel())
             ->where('student_id', $studentId)
             ->orderBy('date', 'ASC')
             ->findAll();
 
+        // Hitung total pembayaran baru
+        $totalPayment = 0;
         foreach ($payments as $p) {
-            $totalPayment = (float)$p['total_amount'];
-
-            $bills = $this->billModel
-                ->where('student_id', $studentId)
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->orderBy('year', 'ASC')
-                ->orderBy('month', 'ASC')
-                ->findAll();
-
-            foreach ($bills as $bill) {
-                $remaining = $bill['amount'] - $bill['paid_amount'];
-                if ($totalPayment <= 0) break;
-
-                if ($totalPayment >= $remaining) {
-                    $bill['paid_amount'] += $remaining;
-                    $bill['status'] = 'paid';
-                    $totalPayment -= $remaining;
-                } else {
-                    $bill['paid_amount'] += $totalPayment;
-                    $bill['status'] = 'partial';
-                    $totalPayment = 0;
-                }
-
-                $this->billModel->update($bill['id'], [
-                    'paid_amount' => $bill['paid_amount'],
-                    'status'      => $bill['status']
-                ]);
-            }
-
-            if ($totalPayment > 0) $overpaid += $totalPayment;
+            $totalPayment += (float)$p['total_amount'];
         }
 
-        $this->studentModel->update($studentId, ['overpaid' => $overpaid]);
+        $remainingPayment = $totalPayment;
+
+        // Reset semua tagihan sebelum distribusi
+        foreach ($bills as $bill) {
+            $this->billModel->update($bill['id'], [
+                'paid_amount' => 0,
+                'status' => 'unpaid'
+            ]);
+        }
+
+        // Distribusikan pembayaran baru ke bill satu per satu
+        foreach ($bills as $bill) {
+            if ($remainingPayment <= 0) break;
+
+            $billAmount = (float)$bill['amount'];
+
+            if ($remainingPayment >= $billAmount) {
+                // Bayar penuh
+                $this->billModel->update($bill['id'], [
+                    'paid_amount' => $billAmount,
+                    'status' => 'paid'
+                ]);
+                $remainingPayment -= $billAmount;
+            } else {
+                // Bayar sebagian
+                $this->billModel->update($bill['id'], [
+                    'paid_amount' => $remainingPayment,
+                    'status' => 'partial'
+                ]);
+                $remainingPayment = 0;
+            }
+        }
+
+        // Hitung sisa tagihan & overpaid
+        $totalBills = 0;
+        foreach ($bills as $bill) $totalBills += (float)$bill['amount'];
+
+        $amountDueNow = max($totalBills - $totalPayment, 0);
+        $overpaid = max($totalPayment - $totalBills, 0);
+
+        // Simpan overpaid siswa hanya jika ada kelebihan
+        $this->studentModel->update($studentId, [
+            'overpaid' => $overpaid
+        ]);
+
+        // Return info ringkas (opsional, bisa untuk debug atau view)
+        return [
+            'totalBills' => $totalBills,
+            'totalPayment' => $totalPayment,
+            'amountDueNow' => $amountDueNow,
+            'overpaid' => $overpaid
+        ];
     }
 
     // --------------------------------------------------

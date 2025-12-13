@@ -8,9 +8,6 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5>Edit Kategori Pembayaran</h5>
-                <a href="<?= base_url('payment-categories/edit-class-rules/' . $category['id']) ?>" class="btn btn-sm btn-info">
-                    <i class="fas fa-layer-group"></i> Tarif per Kelas
-                </a>
             </div>
             <div class="card-body">
                 <form action="<?= base_url('payment-categories/update/' . $category['id']) ?>" method="post">
@@ -39,8 +36,8 @@
                             class="form-control <?= isset(session('errors')['default_amount']) ? 'is-invalid' : '' ?>"
                             name="default_amount"
                             id="default_amount"
-                            value="<?= old('default_amount', $category['default_amount']) ?>"
-                            placeholder="Contoh: 100.000">
+                            value="<?= old('default_amount', number_format($category['default_amount'], 0, ',', '.')) ?>"
+                            placeholder="Contoh: 250.000">
                         <?php if (isset(session('errors')['default_amount'])) : ?>
                             <div class="invalid-feedback">
                                 <?= session('errors')['default_amount'] ?>
@@ -100,21 +97,21 @@
     document.addEventListener('DOMContentLoaded', function() {
         const input = document.getElementById('default_amount');
 
-        function formatNumber(value) {
-            if (!value) return '';
-            return value.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // titik ribuan
+        // Format ribuan saat mengetik
+        function formatRibuan(angka) {
+            return angka.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
-        input.addEventListener('input', function(e) {
-            let numericValue = this.value.replace(/\./g, '');
-            let cursorPosition = this.selectionStart;
-            this.value = formatNumber(numericValue);
-            let newLength = this.value.length;
-            this.selectionEnd = cursorPosition + (newLength - numericValue.length);
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, '');
+            this.value = formatRibuan(value);
         });
 
+        // Saat submit, hapus titik ribuan agar database menerima angka murni
         input.form.addEventListener('submit', function() {
-            input.value = input.value.replace(/\./g, '');
+            if (input.value) {
+                input.value = input.value.replace(/\./g, '');
+            }
         });
     });
 </script>

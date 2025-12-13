@@ -9,6 +9,32 @@
             </div>
             <div class="card-body">
 
+                <!-- Pilih User (hanya admin) -->
+                <?php if (isset($role) && $role === 'admin'): ?>
+                    <div class="callout callout-info">
+                        <form method="get" class="mb-3">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <label for="user_id" class="col-form-label">Pilih User:</label>
+                                </div>
+                                <div class="dropdown col-auto">
+                                    <select name="user_id" id="user_id" class="form-control">
+                                        <option value="">-- Semua User --</option>
+                                        <?php foreach ($users as $user): ?>
+                                            <option value="<?= $user['id'] ?>" <?= ($selected_user == $user['id']) ? 'selected' : '' ?>>
+                                                <?= esc($user['name']) ?>
+                                            </option>
+                                        <?php endforeach ?>
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-primary">Tampilkan</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                <?php endif ?>
+
                 <!-- Pendapatan -->
                 <h6>Pendapatan</h6>
                 <div class="table-responsive mb-3">

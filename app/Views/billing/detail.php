@@ -44,7 +44,7 @@ function tanggalIndonesia($date)
                     <a href="<?= base_url('billing') ?>" class="btn btn-primary">
                         <i class="fas fa-arrow-left"></i> Kembali
                     </a>
-                    <a href="<?= base_url('billing/pdf/' . $student['id']) ?>" class="btn btn-outline-primary">
+                    <a href="<?= base_url('billing/pdf/' . $student['id']) ?>" class="btn btn-outline-primary" target="_blank">
                         <i class="fas fa-file-pdf"></i> Cetak PDF
                     </a>
                 </div>

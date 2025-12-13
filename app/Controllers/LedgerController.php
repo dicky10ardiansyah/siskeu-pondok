@@ -25,52 +25,66 @@ class LedgerController extends BaseController
         $this->journalModel = new JournalModel();
     }
 
-    /**
-     * Ambil data ledger per akun
-     */
-    protected function getLedgerData($start = null, $end = null)
+    protected function getLedgerData($start = null, $end = null, $selectedUser = null)
     {
-        $accounts = $this->accountsModel->findAll(); // otomatis filter user
-        $ledger   = [];
+        $userId   = session()->get('user_id');
+        $userRole = session()->get('user_role'); // admin | user
+
+        // Tentukan user transaksi
+        if ($userRole === 'admin' && $selectedUser) {
+            $journalUserId = $selectedUser;
+        } elseif ($userRole === 'admin') {
+            $journalUserId = null; // semua user
+        } else {
+            $journalUserId = $userId; // user biasa hanya datanya sendiri
+        }
+
+        // Ambil SEMUA akun (akun adalah milik sistem)
+        $accounts = $this->accountsModel->findAll();
+
+        $ledger = [];
 
         foreach ($accounts as $account) {
-            $entries = [];
 
-            // Ambil journal entries untuk akun ini
-            $journalEntries = $this->journalEntriesModel
-                ->where('account_id', $account['id'])
-                ->findAll(); // otomatis filter user
+            $jeQuery = $this->journalEntriesModel
+                ->select('journal_entries.*, journals.date, journals.description')
+                ->join('journals', 'journals.id = journal_entries.journal_id')
+                ->where('journal_entries.account_id', $account['id']);
+
+            // Filter pemilik transaksi (BEST PRACTICE)
+            if ($journalUserId !== null) {
+                $jeQuery->where('journals.user_id', $journalUserId);
+            }
+
+            // Filter tanggal
+            if ($start) {
+                $jeQuery->where('journals.date >=', $start);
+            }
+            if ($end) {
+                $jeQuery->where('journals.date <=', $end);
+            }
+
+            $journalEntries = $jeQuery->orderBy('journals.date', 'ASC')->findAll();
+
+            $entries = [];
+            $balance = $totalDebit = $totalCredit = 0;
 
             foreach ($journalEntries as $je) {
-                $journalData = $this->journalModel->find($je['journal_id']); // otomatis filter user
-                if ($journalData) {
-                    $journalDate = $journalData['date'];
-                    if ($start && $journalDate < $start) continue;
-                    if ($end && $journalDate > $end) continue;
+                $balance += $je['debit'] - $je['credit'];
 
-                    $entries[] = [
-                        'date'        => $journalDate,
-                        'description' => $journalData['description'] ?? 'Jurnal',
-                        'debit'       => $je['debit'],
-                        'credit'      => $je['credit'],
-                    ];
-                }
+                $entries[] = [
+                    'date'        => $je['date'],
+                    'description' => $je['description'] ?? 'Jurnal',
+                    'debit'       => (float) $je['debit'],
+                    'credit'      => (float) $je['credit'],
+                    'balance'     => $balance,
+                ];
+
+                $totalDebit  += $je['debit'];
+                $totalCredit += $je['credit'];
             }
 
-            // Urutkan berdasarkan tanggal jurnal
-            usort($entries, fn($a, $b) => strtotime($a['date']) - strtotime($b['date']));
-
-            // Hitung saldo berjalan
-            $balance     = 0;
-            $totalDebit  = 0;
-            $totalCredit = 0;
-            foreach ($entries as &$entry) {
-                $balance += $entry['debit'] - $entry['credit'];
-                $entry['balance'] = $balance;
-                $totalDebit  += $entry['debit'];
-                $totalCredit += $entry['credit'];
-            }
-
+            // Akun tetap ditampilkan walau tanpa transaksi
             $ledger[$account['name']] = [
                 'entries'      => $entries,
                 'totalDebit'   => $totalDebit,
@@ -82,25 +96,29 @@ class LedgerController extends BaseController
         return $ledger;
     }
 
-    /**
-     * Halaman index ledger
-     */
     public function index()
     {
         $start  = $this->request->getGet('start');
         $end    = $this->request->getGet('end');
-        $ledger = $this->getLedgerData($start, $end);
+        $selectedUser = $this->request->getGet('user_id');
+
+        $ledger = $this->getLedgerData($start, $end, $selectedUser);
+
+        $users = [];
+        if (session()->get('user_role') === 'admin') {
+            $users = (new \App\Models\UserModel())->findAll();
+        }
 
         return view('ledger/index', [
-            'ledger' => $ledger,
-            'start'  => $start,
-            'end'    => $end,
+            'ledger'        => $ledger,
+            'start'         => $start,
+            'end'           => $end,
+            'role'          => session()->get('user_role'),
+            'users'         => $users,
+            'selected_user' => $selectedUser
         ]);
     }
 
-    /**
-     * Export ledger PDF
-     */
     public function exportPDF()
     {
         $start  = $this->request->getGet('start');
@@ -117,13 +135,10 @@ class LedgerController extends BaseController
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $dompdf->stream('ledger.pdf', ['Attachment' => true]);
+        $dompdf->stream('ledger.pdf', ['Attachment' => false]);
         exit;
     }
 
-    /**
-     * Export ledger Excel
-     */
     public function exportExcel()
     {
         $start  = $this->request->getGet('start');

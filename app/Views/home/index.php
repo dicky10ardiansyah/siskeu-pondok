@@ -1,10 +1,11 @@
 <?= $this->extend('layouts/template/apps') ?>
 <?= $this->section('content') ?>
 
+<?php $session = session(); ?>
 <div class="container-fluid">
-    <h1 class="mb-4">Selamat Datang</h1>
+    <h1 class="mb-4">Selamat Datang, <?= esc($session->get('name')) ?></h1>
 
-    <!-- ================== Form Filter Tanggal ================== -->
+    <!-- ================== Form Filter Tanggal & User ================== -->
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-light">
             <strong>Filter Berdasarkan Tanggal</strong>
@@ -20,6 +21,21 @@
                         <label class="form-label">End Date</label>
                         <input type="date" name="end_date" class="form-control" value="<?= esc($end_date) ?>">
                     </div>
+
+                    <?php if ($user_role === 'admin'): ?>
+                        <div class="col-md-3">
+                            <label class="form-label">Pilih User</label>
+                            <select name="user_id" class="form-control">
+                                <option value="">-- Semua User --</option>
+                                <?php foreach ($allUsers as $user): ?>
+                                    <option value="<?= $user['id'] ?>" <?= ($selected_user_id == $user['id']) ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="col-md-3 align-self-end">
                         <button type="submit" class="btn btn-primary w-100">Filter</button>
                     </div>
@@ -28,7 +44,7 @@
         </div>
     </div>
 
-    <!-- ================== Total Tipe Akun ================== -->
+    <!-- ================== Total Saldo Akun ================== -->
     <h4 class="mt-4 mb-2">Total Saldo Akun</h4>
     <div class="row g-3 mb-4">
         <?php
@@ -78,7 +94,6 @@
     <!-- ================== Charts ================== -->
     <h4 class="mt-4 mb-2">Visualisasi Data</h4>
     <div class="row g-3">
-        <!-- Pie Chart Saldo Akun -->
         <div class="col-lg-6">
             <div class="card shadow-sm">
                 <div class="card-header bg-light">
@@ -90,7 +105,6 @@
             </div>
         </div>
 
-        <!-- Bar Chart Tagihan vs Pembayaran -->
         <div class="col-lg-6">
             <div class="card shadow-sm">
                 <div class="card-header bg-light">
@@ -104,10 +118,8 @@
     </div>
 </div>
 
-<!-- ================== Chart.js ================== -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Pie Chart Saldo Akun
     const ctxSaldo = document.getElementById('saldoChart').getContext('2d');
     const saldoChart = new Chart(ctxSaldo, {
         type: 'pie',
@@ -129,7 +141,6 @@
         }
     });
 
-    // Bar Chart Tagihan vs Pembayaran vs Tunggakan
     const ctxBilling = document.getElementById('billingChart').getContext('2d');
     const billingChart = new Chart(ctxBilling, {
         type: 'bar',
