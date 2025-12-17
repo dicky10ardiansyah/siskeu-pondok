@@ -10,12 +10,36 @@
             </div>
             <div class="card-body">
 
+                <?php if ($role === 'admin'): ?>
+                    <form method="get" class="mb-3">
+                        <div class="form-group">
+                            <label><strong>User</strong></label>
+                            <select name="user_id" class="form-control" onchange="this.form.submit()">
+                                <?php foreach ($users as $u): ?>
+                                    <option value="<?= $u['id'] ?>"
+                                        <?= $u['id'] == $selectedUserId ? 'selected' : '' ?>>
+                                        <?= esc($u['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </form>
+                <?php endif; ?>
+
                 <!-- Update Amount -->
                 <form action="<?= base_url('students/' . $student['id'] . '/payment-rules') ?>" method="post">
                     <?= csrf_field() ?>
 
                     <?php
-                    // Siapkan tarif default per kelas
+                    // ===============================
+                    // INDEX RULE BERDASARKAN CATEGORY
+                    // ===============================
+                    $rulesByCategory = [];
+                    foreach ($rules as $r) {
+                        $rulesByCategory[$r['category_id']] = $r;
+                    }
+
+                    // Tarif kelas
                     $classRulesArr = [];
                     foreach ($classRules as $cr) {
                         $classRulesArr[$cr['category_id']] = $cr['amount'];
@@ -24,62 +48,43 @@
 
                     <?php foreach ($categories as $category): ?>
                         <?php
-                        // Cari rule siswa
-                        $rule = array_filter($rules, fn($r) => $r['category_id'] == $category['id']);
-                        $rule = $rule ? array_values($rule)[0] : null;
+                        $rule = $rulesByCategory[$category['id']] ?? null;
 
-                        // Tentukan nilai default: rule siswa > tarif kelas > default kategori
-                        $amount = $rule['amount'] ?? ($classRulesArr[$category['id']] ?? $category['default_amount'] ?? 0);
+                        // prioritas: rule siswa > rule kelas > default kategori
+                        $amount = $rule['amount']
+                            ?? ($classRulesArr[$category['id']] ?? $category['default_amount'] ?? 0);
                         ?>
                         <div class="form-group d-flex align-items-center mb-2">
-                            <label class="mr-2" style="width: 200px"><?= esc($category['name']) ?></label>
+                            <label class="mr-2" style="width: 200px">
+                                <?= esc($category['name']) ?>
+                            </label>
 
                             <input type="text"
                                 name="amount[<?= $rule['id'] ?? 'new_' . $category['id'] ?>]"
                                 class="form-control mr-2 currency"
                                 value="<?= number_format($amount, 0, ',', '.') ?>">
 
-                            <?php if ($rule && $rule['is_mandatory'] == 1): ?>
-                                <!-- Button Disable -->
-                                <a href="<?= base_url('students/' . $student['id'] . '/payment-rules/disable/' . $rule['id']) ?>"
-                                    class="btn btn-warning btn-sm btn-disable">
-                                    <i class="fas fa-ban"></i> Nonaktifkan
-                                </a>
-                            <?php elseif ($rule): ?>
-                                <!-- Button Enable -->
-                                <a href="<?= base_url('students/' . $student['id'] . '/payment-rules/enable/' . $rule['id']) ?>"
-                                    class="btn btn-success btn-sm btn-enable">
-                                    <i class="fas fa-check"></i> Aktifkan
-                                </a>
+                            <!-- Tombol Enable / Disable -->
+                            <?php if ($rule): ?>
+                                <?php if ((int)$rule['is_mandatory'] === 1): ?>
+                                    <a href="<?= base_url("students/{$student['id']}/payment-rules/disable/{$rule['id']}") ?>"
+                                        class="btn btn-warning btn-sm btn-disable">
+                                        <i class="fas fa-ban"></i> Nonaktifkan
+                                    </a>
+                                <?php else: ?>
+                                    <a href="<?= base_url("students/{$student['id']}/payment-rules/enable/{$rule['id']}") ?>"
+                                        class="btn btn-success btn-sm btn-enable">
+                                        <i class="fas fa-check"></i> Aktifkan
+                                    </a>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="badge badge-secondary ml-2">Belum aktif</span>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
 
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update</button>
                     <a href="<?= base_url('students') ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Batal</a>
-                </form>
-
-                <hr>
-
-                <!-- Tambah Rule Baru -->
-                <form action="<?= base_url('students/' . $student['id'] . '/payment-rules/add') ?>" method="post" class="mt-3">
-                    <?= csrf_field() ?>
-                    <div class="form-row align-items-center">
-                        <div class="col">
-                            <select name="category_id" class="form-control" required>
-                                <option value="">Pilih Kategori</option>
-                                <?php foreach ($categories as $cat): ?>
-                                    <option value="<?= $cat['id'] ?>"><?= esc($cat['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col">
-                            <input type="text" name="amount" class="form-control currency" placeholder="Nominal (kosongkan untuk default kelas)">
-                        </div>
-                        <div class="col-auto">
-                            <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Tambah Rule</button>
-                        </div>
-                    </div>
                 </form>
 
             </div>

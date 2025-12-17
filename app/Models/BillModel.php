@@ -11,6 +11,7 @@ class BillModel extends Model
     protected $allowedFields = [
         'student_id',
         'category_id',
+        'class_id',
         'month',
         'year',
         'amount',

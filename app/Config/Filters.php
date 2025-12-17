@@ -54,13 +54,8 @@ class Filters extends BaseFilters
     public array $required = [
         'before' => [
             'forcehttps', // Force Global Secure Requests
-            'pagecache',  // Web Page Caching
         ],
-        'after' => [
-            'pagecache',   // Web Page Caching
-            'performance', // Performance Metrics
-            'toolbar',     // Debug Toolbar
-        ],
+        'after' => [],
     ];
 
     /**
@@ -79,8 +74,14 @@ class Filters extends BaseFilters
             // 'invalidchars',
         ],
         'after' => [
-            // 'honeypot',
-            // 'secureheaders',
+            'toolbar' => [
+                'except' => [
+                    'billing/pdf/*',
+                    'billing/pdf',         // tambahkan tanpa slash
+                    'payments/receipt/*',
+                    'payments/receipt',    // tambahkan tanpa slash
+                ],
+            ],
         ],
     ];
 

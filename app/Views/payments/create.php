@@ -20,7 +20,7 @@
                             <?php $oldStudent = old('student_id', $selectedStudentId ?? ''); ?>
                             <?php foreach ($students as $student) : ?>
                                 <option value="<?= $student['id'] ?>" <?= $oldStudent == $student['id'] ? 'selected' : '' ?>>
-                                    <?= esc($student['name']) ?>
+                                    <?= esc($student['name']) ?> - (<?= esc($student['nis']) ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -107,6 +107,24 @@
                         <?php endif; ?>
                         <div id="preview" class="mt-2"></div>
                     </div>
+
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <div class="form-group <?= isset(session('errors')['user_id']) ? 'is-invalid' : '' ?>">
+                            <label for="user_id">User</label>
+                            <select name="user_id" id="user_id" class="form-control">
+                                <option value="">-- Pilih User --</option>
+                                <?php $oldUser = old('user_id', $selectedUserId ?? ''); ?>
+                                <?php foreach ($users as $user) : ?>
+                                    <option value="<?= $user['id'] ?>" <?= $oldUser == $user['id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?> (<?= esc($user['email']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset(session('errors')['user_id'])) : ?>
+                                <div class="invalid-feedback d-block"><?= session('errors')['user_id'] ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">

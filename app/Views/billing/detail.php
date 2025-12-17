@@ -35,6 +35,40 @@ function tanggalIndonesia($date)
 }
 ?>
 
+<?php
+function whatsappBillingLink($student, $totalBills, $amountDueNow, $pdfSecureUrl)
+{
+    if (empty($student['phone'])) return null;
+
+    $phone = preg_replace('/[^0-9]/', '', $student['phone']);
+    if (substr($phone, 0, 1) === '0') {
+        $phone = '62' . substr($phone, 1);
+    }
+
+    $message = "Assalamualaikum wr wb\n" .
+        "Yth. Orang Tua/Wali {$student['name']}\n" .
+        "Berikut kami sampaikan informasi tagihan siswa:\n" .
+        "Nama: {$student['name']}\n" .
+        "Total yang harus dibayar: Rp " . number_format($amountDueNow, 0, ',', '.') . "\n\n" .
+        "Link Detail tagihan (PDF):\n" .
+        "$pdfSecureUrl\n\n" .
+        "Berikut ini informasi dan ketentuan pembayaran:\n" .
+        "1. Transfer melalui Bank Syariah Indonesia (BSI)\n" .
+        "No. Rek: 73-888-888-78\n" .
+        "a.n. Yayasan Ibu Bahagia Batam\n" .
+        "2. Bukti transfer dikirim melalui link berikut:\n" .
+        "https://bit.ly/SPPMEI2025\n\n" .
+        "Jika ada kendala, silakan hubungi:\n" .
+        "• Bunda Rani: 0812-6158-5057\n" .
+        "• Admin Sekolah: 0813-6517-3324\n\n" .
+        "Atas perhatian dan kerja samanya kami syukuri\n" .
+        "Alhamdulillah jazakumullohu khoiro\n" .
+        "Waalaikumussalam wr wb";
+
+    return 'https://wa.me/' . $phone . '?text=' . urlencode($message);
+}
+?>
+
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
@@ -44,9 +78,22 @@ function tanggalIndonesia($date)
                     <a href="<?= base_url('billing') ?>" class="btn btn-primary">
                         <i class="fas fa-arrow-left"></i> Kembali
                     </a>
-                    <a href="<?= base_url('billing/pdf/' . $student['id']) ?>" class="btn btn-outline-primary" target="_blank">
+                    <a href="<?= $pdfSecureUrl ?>"
+                        class="btn btn-outline-primary" target="_blank">
                         <i class="fas fa-file-pdf"></i> Cetak PDF
                     </a>
+                    <?php $waLink = whatsappBillingLink($student, $totalBills, $amountDueNow, $pdfSecureUrl); ?>
+                    <?php if ($waLink): ?>
+                        <a href="<?= $waLink ?>"
+                            target="_blank"
+                            class="btn btn-success">
+                            <i class="fab fa-whatsapp"></i> Kirim WhatsApp
+                        </a>
+                    <?php else: ?>
+                        <button class="btn btn-secondary" disabled title="Nomor WhatsApp belum tersedia">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -101,6 +148,7 @@ function tanggalIndonesia($date)
                                 <th>Bulan</th>
                                 <th>Tahun</th>
                                 <th>Kategori</th>
+                                <th>Kelas</th>
                                 <th>Jumlah</th>
                                 <th>Terbayar</th>
                                 <th>Status</th>
@@ -115,6 +163,7 @@ function tanggalIndonesia($date)
                                         <td><?= date('F', mktime(0, 0, 0, $bill['month'], 10)) ?></td>
                                         <td><?= esc($bill['year']) ?></td>
                                         <td><?= esc($bill['category']) ?></td>
+                                        <td><?= esc($bill['kelas']) ?></td>
                                         <td><?= number_format($bill['amount'], 0, ',', '.') ?></td>
                                         <td><?= number_format($bill['paid_amount'], 0, ',', '.') ?></td>
                                         <td><?= statusLabel($bill['paid_amount'], $bill['amount'], $bill['is_partial_payment']) ?></td>

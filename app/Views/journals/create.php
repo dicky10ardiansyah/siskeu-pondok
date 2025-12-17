@@ -79,6 +79,21 @@
                         </table>
                     </div>
 
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <div class="form-group mb-3">
+                            <label for="user_id">User</label>
+                            <select name="user_id" id="user_id" class="form-control">
+                                <option value="">-- Pilih User --</option>
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?= $user['id'] ?>"
+                                        <?= old('user_id') == $user['id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
                     <!-- Tombol -->
                     <div class="mt-4 d-flex justify-content-between">
                         <a href="<?= base_url('journals') ?>" class="btn btn-secondary">

@@ -35,6 +35,12 @@ class PaymentCategoryClassRules extends Migration
                 'unsigned'   => true,
                 'null'       => true,
             ],
+            'is_mandatory' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 1,
+                'null'       => true,
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

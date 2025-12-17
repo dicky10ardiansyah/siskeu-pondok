@@ -63,7 +63,9 @@
                                 <?php foreach ($transactions as $trx) : ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
-                                        <td><?= date('d-m-Y', strtotime($trx['date'])) ?></td>
+                                        <td>
+                                            <?= date('d F Y', strtotime($trx['date'])) ?>
+                                        </td>
                                         <td><?= esc($trx['description']) ?></td>
                                         <td>
                                             <span class="badge <?= $trx['type'] === 'income' ? 'badge-success' : 'badge-danger' ?>">

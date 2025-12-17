@@ -17,6 +17,7 @@ class PaymentCategoryClassRuleModel extends Model
         'class_id',
         'category_id',
         'amount',
+        'is_mandatory',
         'user_id'
     ];
 

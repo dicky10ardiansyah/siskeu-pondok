@@ -17,6 +17,7 @@ class PaymentCategoriesController extends BaseController
     protected $paymentCategoryModel;
     protected $paymentCategoryClassRuleModel;
     protected $classModel;
+    protected $studentModel;
     protected $helpers = ['form'];
 
     public function __construct()
@@ -24,6 +25,7 @@ class PaymentCategoriesController extends BaseController
         $this->paymentCategoryModel = new PaymentCategoryModel();
         $this->paymentCategoryClassRuleModel = new PaymentCategoryClassRuleModel();
         $this->classModel = new ClassModel();
+        $this->studentModel = new StudentModel();
     }
 
     // ==================================================
@@ -126,7 +128,9 @@ class PaymentCategoriesController extends BaseController
         $session = session();
         $userId = $session->get('user_id');
 
-        // Insert kategori baru beserta user_id
+        // -------------------------------
+        // Insert kategori baru
+        // -------------------------------
         $this->paymentCategoryModel->insert([
             'name'            => $this->request->getPost('name'),
             'default_amount'  => $this->request->getPost('default_amount') ?: 0,
@@ -136,15 +140,17 @@ class PaymentCategoriesController extends BaseController
         ]);
 
         $categoryId = $this->paymentCategoryModel->getInsertID();
+        $defaultAmount = $this->request->getPost('default_amount') ?: 0;
 
-        // Ambil kelas milik user kategori
+        // -------------------------------
+        // Auto-create class rules
+        // -------------------------------
         $classes = $this->classModel
             ->where('user_id', $userId)
             ->orderBy('id', 'ASC')
             ->findAll();
 
         foreach ($classes as $class) {
-            // Cek dulu jika rule sudah ada untuk kategori + kelas
             $existing = $this->paymentCategoryClassRuleModel
                 ->where('category_id', $categoryId)
                 ->where('class_id', $class['id'])
@@ -154,14 +160,40 @@ class PaymentCategoriesController extends BaseController
                 $this->paymentCategoryClassRuleModel->insert([
                     'category_id' => $categoryId,
                     'class_id'    => $class['id'],
-                    'amount'      => $this->request->getPost('default_amount') ?: 0,
+                    'amount'      => $defaultAmount,
                     'user_id'     => $userId
                 ]);
+            }
+
+            // -------------------------------
+            // Auto-create student rules
+            // -------------------------------
+            $students = $this->studentModel
+                ->where('class', $class['id'])
+                ->findAll();
+
+            foreach ($students as $student) {
+                $existingRule = (new \App\Models\StudentPaymentRuleModel())
+                    ->where('student_id', $student['id'])
+                    ->where('category_id', $categoryId)
+                    ->first();
+
+                if (!$existingRule) {
+                    (new \App\Models\StudentPaymentRuleModel())->insert([
+                        'student_id'   => $student['id'],
+                        'category_id'  => $categoryId,
+                        'amount'       => $defaultAmount,
+                        'is_mandatory' => 1,
+                        'user_id'      => $student['user_id'] ?? $userId,
+                        'created_at'   => date('Y-m-d H:i:s'),
+                        'updated_at'   => date('Y-m-d H:i:s')
+                    ]);
+                }
             }
         }
 
         return redirect()->to('/payment-categories')
-            ->with('success', 'Kategori pembayaran berhasil ditambahkan.');
+            ->with('success', 'Kategori pembayaran berhasil ditambahkan, termasuk tarif siswa otomatis.');
     }
 
     // ==================================================
@@ -185,14 +217,16 @@ class PaymentCategoriesController extends BaseController
     public function update($id)
     {
         $category = $this->paymentCategoryModel->find($id);
-
         if (!$category) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Kategori tidak ditemukan');
         }
 
         $session = session();
-        if ($session->get('user_role') !== 'admin' && $category['user_id'] != $session->get('user_id')) {
-            return redirect()->to('/payment-categories')->with('error', 'Akses ditolak.');
+        if (
+            $session->get('user_role') !== 'admin' &&
+            $category['user_id'] != $session->get('user_id')
+        ) {
+            return redirect()->to('/payment-categories')->with('error', 'Akses ditolak');
         }
 
         $rules = [
@@ -203,43 +237,47 @@ class PaymentCategoriesController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('errors', $this->validator->getErrors());
         }
 
-        $defaultAmount = $this->request->getPost('default_amount') ?: 0;
+        $defaultAmount = (float) $this->request->getPost('default_amount');
 
-        // Update kategori
+        $db = \Config\Database::connect();
+        $db->transStart();
+
+        // =====================================
+        // UPDATE CATEGORY
+        // =====================================
         $this->paymentCategoryModel->update($id, [
             'name'            => $this->request->getPost('name'),
             'default_amount'  => $defaultAmount,
             'billing_type'    => $this->request->getPost('billing_type'),
             'duration_months' => $this->request->getPost('duration_months') ?: null,
-            'user_id'         => $category['user_id']
         ]);
 
-        // =====================================================
-        // Sinkronisasi class rules
-        // =====================================================
+        $studentRuleModel = new \App\Models\StudentPaymentRuleModel();
+
+        // =====================================
+        // SYNC CLASS + STUDENT RULE
+        // =====================================
         $classes = $this->classModel
             ->where('user_id', $category['user_id'])
-            ->orderBy('id', 'ASC')
             ->findAll();
 
         foreach ($classes as $class) {
-            $existing = $this->paymentCategoryClassRuleModel
+
+            // ---------- CLASS RULE ----------
+            $classRule = $this->paymentCategoryClassRuleModel
                 ->where('category_id', $id)
                 ->where('class_id', $class['id'])
                 ->first();
 
-            if ($existing) {
-                // Update semua amount sesuai default_amount kategori
-                $this->paymentCategoryClassRuleModel->update($existing['id'], [
+            if ($classRule) {
+                $this->paymentCategoryClassRuleModel->update($classRule['id'], [
                     'amount' => $defaultAmount
                 ]);
             } else {
-                // Insert jika belum ada
                 $this->paymentCategoryClassRuleModel->insert([
                     'category_id' => $id,
                     'class_id'    => $class['id'],
@@ -247,10 +285,50 @@ class PaymentCategoriesController extends BaseController
                     'user_id'     => $category['user_id']
                 ]);
             }
+
+            // ---------- STUDENT RULE ----------
+            $students = $this->studentModel
+                ->where('class', $class['id'])
+                ->findAll();
+
+            foreach ($students as $student) {
+
+                $studentRule = $studentRuleModel
+                    ->where('student_id', $student['id'])
+                    ->where('category_id', $id)
+                    ->first();
+
+                if ($studentRule) {
+                    // UPDATE hanya rule otomatis
+                    if ($studentRule['is_mandatory'] == 1) {
+                        $studentRuleModel->update($studentRule['id'], [
+                            'amount'     => $defaultAmount,
+                            'updated_at' => date('Y-m-d H:i:s')
+                        ]);
+                    }
+                } else {
+                    // INSERT baru
+                    $studentRuleModel->insert([
+                        'student_id'   => $student['id'],
+                        'category_id'  => $id,
+                        'amount'       => $defaultAmount,
+                        'is_mandatory' => 1,
+                        'user_id'      => $student['user_id'] ?? $category['user_id'],
+                        'created_at'   => date('Y-m-d H:i:s'),
+                        'updated_at'   => date('Y-m-d H:i:s')
+                    ]);
+                }
+            }
+        }
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return redirect()->back()->with('error', 'Gagal memperbarui data');
         }
 
         return redirect()->to('/payment-categories')
-            ->with('success', 'Kategori pembayaran dan tarif per kelas berhasil diperbarui.');
+            ->with('success', 'Kategori & tarif siswa berhasil disinkronkan');
     }
 
     // ==================================================
@@ -281,50 +359,50 @@ class PaymentCategoriesController extends BaseController
         $role    = $session->get('user_role');
         $userId  = $session->get('user_id');
 
-        // ======================================
-        // Ambil kategori (validasi ownership)
-        // ======================================
         $category = $this->paymentCategoryModel->find($categoryId);
-
         if (!$category) {
-            throw new \CodeIgniter\Exceptions\PageNotFoundException(
-                'Kategori tidak ditemukan'
-            );
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Kategori tidak ditemukan');
         }
 
-        // User biasa hanya boleh akses kategori miliknya
         if ($role !== 'admin' && $category['user_id'] != $userId) {
-            throw new \CodeIgniter\Exceptions\PageForbiddenException(
-                'Anda tidak memiliki akses ke data ini'
-            );
+            throw new \CodeIgniter\Exceptions\PageForbiddenException('Anda tidak memiliki akses ke data ini');
         }
 
-        // ======================================
-        // Ambil kelas MILIK OWNER KATEGORI
-        // ======================================
         $classes = $this->classModel
             ->where('user_id', $category['user_id'])
             ->orderBy('id', 'ASC')
             ->findAll();
 
-        // ======================================
-        // Ambil class rules MILIK OWNER KATEGORI
-        // ======================================
         $rulesRaw = $this->paymentCategoryClassRuleModel
             ->where('category_id', $categoryId)
             ->where('user_id', $category['user_id'])
             ->findAll();
 
-        // Mapping: class_id => amount
         $classRules = [];
         foreach ($rulesRaw as $rule) {
-            $classRules[$rule['class_id']] = $rule['amount'];
+            $classRules[$rule['class_id']] = [
+                'amount'       => $rule['amount'],
+                'is_mandatory' => $rule['is_mandatory'] ?? 1,
+                'user_id'      => $rule['user_id']
+            ];
+        }
+
+        // --- Tambahkan daftar user untuk admin ---
+        $users = [];
+        if ($role === 'admin') {
+            $db = \Config\Database::connect();
+            $users = $db->table('users')
+                ->select('id, name')
+                ->orderBy('name')
+                ->get()
+                ->getResultArray();
         }
 
         return view('payment_categories/class_rules', [
             'category'   => $category,
             'classes'    => $classes,
             'classRules' => $classRules,
+            'users'      => $users
         ]);
     }
 
@@ -334,7 +412,7 @@ class PaymentCategoriesController extends BaseController
         $role    = $session->get('user_role');
         $userId  = $session->get('user_id');
 
-        // Ambil kategori sesuai user atau admin
+        // Ambil kategori
         $category = $this->paymentCategoryModel
             ->where('id', $categoryId)
             ->where($role === 'admin' ? 'id > 0' : ['user_id' => $userId])
@@ -342,51 +420,79 @@ class PaymentCategoriesController extends BaseController
 
         if (!$category) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException(
-                'Kategori tidak ditemukan atau Anda tidak memiliki akses'
+                'Kategori tidak ditemukan atau akses ditolak'
             );
         }
 
-        // Ambil input amounts: [class_id => amount]
-        $amounts = $this->request->getPost('amounts');
-        if (!$amounts || !is_array($amounts)) {
-            return redirect()->back()->with('error', 'Tidak ada data yang disimpan');
-        }
+        $amounts   = $this->request->getPost('amounts');
+        $mandatory = $this->request->getPost('mandatory') ?? [];
+        $userDefault = $this->request->getPost('user_ids_default') ?? $category['user_id'];
 
-        // Ambil kelas milik user kategori
-        $classes = $this->classModel
-            ->where('user_id', $category['user_id'])
-            ->orderBy('id', 'ASC')
-            ->findAll();
+        if (!$amounts || !is_array($amounts)) {
+            return redirect()->back()->with('error', 'Tidak ada perubahan');
+        }
 
         $db = \Config\Database::connect();
         $db->transStart();
 
-        foreach ($classes as $class) {
-            $classId = $class['id'];
+        $studentRuleModel = new \App\Models\StudentPaymentRuleModel();
 
-            // Ambil nilai amount input, default ke 0 jika tidak ada
-            $amount = isset($amounts[$classId]) ? (float) str_replace('.', '', $amounts[$classId]) : 0;
+        foreach ($amounts as $classId => $rawAmount) {
 
-            // Cek existing rule untuk kategori + kelas
-            $existing = $this->paymentCategoryClassRuleModel
+            $amount      = (float) str_replace('.', '', $rawAmount);
+            $isMandatory = isset($mandatory[$classId]) ? 1 : 0;
+            $userIdRule  = $userDefault;
+
+            // ---------- UPDATE / INSERT CLASS RULE ----------
+            $classRule = $this->paymentCategoryClassRuleModel
                 ->where('category_id', $categoryId)
                 ->where('class_id', $classId)
                 ->first();
 
-            if ($existing) {
-                // Update jika sudah ada
-                $this->paymentCategoryClassRuleModel->update($existing['id'], [
-                    'amount'  => $amount,
-                    'user_id' => $category['user_id'] // pastikan konsisten
+            if ($classRule) {
+                $this->paymentCategoryClassRuleModel->update($classRule['id'], [
+                    'amount'       => $amount,
+                    'is_mandatory' => $isMandatory,
+                    'user_id'      => $userIdRule
                 ]);
             } else {
-                // Insert baru jika belum ada
                 $this->paymentCategoryClassRuleModel->insert([
-                    'category_id' => $categoryId,
-                    'class_id'    => $classId,
-                    'amount'      => $amount,
-                    'user_id'     => $category['user_id']
+                    'category_id'  => $categoryId,
+                    'class_id'     => $classId,
+                    'amount'       => $amount,
+                    'is_mandatory' => $isMandatory,
+                    'user_id'      => $userIdRule
                 ]);
+            }
+
+            // ---------- UPDATE STUDENT RULES ----------
+            $students = $this->studentModel->where('class', $classId)->findAll();
+
+            foreach ($students as $student) {
+                $studentRule = $studentRuleModel
+                    ->where('student_id', $student['id'])
+                    ->where('category_id', $categoryId)
+                    ->first();
+
+                $updateData = [
+                    'is_mandatory' => $isMandatory,
+                    'updated_at'   => date('Y-m-d H:i:s'),
+                    'user_id'      => $userIdRule
+                ];
+
+                if ($isMandatory == 1) {
+                    $updateData['amount'] = $amount;
+                }
+
+                if ($studentRule) {
+                    $studentRuleModel->update($studentRule['id'], $updateData);
+                } else {
+                    $studentRuleModel->insert(array_merge($updateData, [
+                        'student_id'   => $student['id'],
+                        'category_id'  => $categoryId,
+                        'created_at'   => date('Y-m-d H:i:s')
+                    ]));
+                }
             }
         }
 
@@ -396,6 +502,6 @@ class PaymentCategoriesController extends BaseController
             return redirect()->back()->with('error', 'Gagal menyimpan perubahan');
         }
 
-        return redirect()->back()->with('success', 'Tarif per kelas berhasil diperbarui');
+        return redirect()->back()->with('success', 'Tarif kelas terpilih berhasil diperbarui');
     }
 }

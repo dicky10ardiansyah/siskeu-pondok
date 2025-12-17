@@ -82,9 +82,6 @@ class PaymentsController extends BaseController
         return view('payments/index', $data);
     }
 
-    // --------------------------------------------------
-    // FORM CREATE
-    // --------------------------------------------------
     public function create()
     {
         $session = session();
@@ -93,29 +90,48 @@ class PaymentsController extends BaseController
 
         $selectedStudentId = $this->request->getGet('student_id');
 
-        // Ambil student sesuai role
-        $data['students'] = $role === 'admin'
-            ? $this->studentModel->findAll()
-            : $this->studentModel->where('user_id', $userId)->findAll();
+        // =====================
+        // USERS (KHUSUS ADMIN)
+        // =====================
+        $data['users'] = [];
+        if ($role === 'admin') {
+            $data['users'] = (new \App\Models\UserModel())->findAll();
+        }
 
+        $data['selectedUserId'] = old('user_id');
+
+        // =====================
+        // STUDENTS (HANYA YANG BELUM LULUS)
+        // =====================
+        $studentQuery = $this->studentModel->where('status', false);
+        if ($role !== 'admin') {
+            $studentQuery->where('user_id', $userId);
+        }
+        $data['students'] = $studentQuery->findAll();
         $data['selectedStudentId'] = $selectedStudentId;
 
-        // Ambil account sesuai role
-        $allAccounts = $role === 'admin'
+        // =====================
+        // ACCOUNTS
+        // =====================
+        $accountQuery = $role === 'admin'
             ? $this->accountModel->findAll()
             : $this->accountModel->where('user_id', $userId)->findAll();
 
-        $data['debitAccounts']  = array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense']));
-        $data['creditAccounts'] = array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['liability', 'equity', 'income']));
+        $data['debitAccounts']  = array_filter(
+            $accountQuery,
+            fn($acc) => in_array($acc['type'], ['asset', 'expense'])
+        );
+
+        $data['creditAccounts'] = array_filter(
+            $accountQuery,
+            fn($acc) => in_array($acc['type'], ['liability', 'equity', 'income'])
+        );
 
         $data['journals'] = $this->journalModel->findAll();
 
         return view('payments/create', $data);
     }
 
-    // --------------------------------------------------
-    // STORE
-    // --------------------------------------------------
     public function store()
     {
         $session = session();
@@ -130,24 +146,28 @@ class PaymentsController extends BaseController
             'date'              => 'required',
             'method'            => 'permit_empty|string',
             'reference'         => 'permit_empty|string',
-            'reference_file'    => 'permit_empty|uploaded[reference_file]|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
+            'reference_file'    => 'permit_empty|uploaded[reference_file]|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]',
         ];
+
+        // Tambahkan validasi user hanya untuk admin
+        if ($role === 'admin') {
+            $validationRules['user_id'] = 'required|integer';
+        }
 
         if (!$this->validate($validationRules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        // Validasi student
+        // Ambil student
         $studentId = $this->request->getPost('student_id');
         $student = $this->studentModel->find($studentId);
         if (!$student || ($role !== 'admin' && $student['user_id'] != $userId)) {
             return redirect()->back()->withInput()->with('error', 'Student tidak valid atau bukan milik Anda');
         }
 
-        // Validasi akun
+        // Ambil akun
         $debitAccount  = $this->accountModel->find($this->request->getPost('debit_account_id'));
         $creditAccount = $this->accountModel->find($this->request->getPost('credit_account_id'));
-
         if ($role !== 'admin') {
             if (($debitAccount && $debitAccount['user_id'] != $userId) ||
                 ($creditAccount && $creditAccount['user_id'] != $userId)
@@ -155,6 +175,9 @@ class PaymentsController extends BaseController
                 return redirect()->back()->withInput()->with('error', 'Akun tidak valid atau bukan milik Anda');
             }
         }
+
+        // Tentukan user_id untuk payment
+        $paymentUserId = $role === 'admin' ? $this->request->getPost('user_id') : $userId;
 
         $paymentData = [
             'student_id'        => $studentId,
@@ -164,9 +187,10 @@ class PaymentsController extends BaseController
             'date'              => $this->request->getPost('date'),
             'method'            => $this->request->getPost('method'),
             'reference'         => $this->request->getPost('reference'),
-            'user_id'           => $userId
+            'user_id'           => $paymentUserId
         ];
 
+        // Upload file referensi
         $file = $this->request->getFile('reference_file');
         if ($file && $file->isValid() && !$file->hasMoved()) {
             $newName = $file->getRandomName();
@@ -174,6 +198,7 @@ class PaymentsController extends BaseController
             $paymentData['reference_file'] = $newName;
         }
 
+        // Simpan payment
         $this->paymentModel->save($paymentData);
         $paymentId = $this->paymentModel->getInsertID();
 
@@ -183,7 +208,7 @@ class PaymentsController extends BaseController
         $journalId = $this->journalModel->insert([
             'date' => $paymentData['date'],
             'description' => $description,
-            'user_id' => $userId,
+            'user_id' => $paymentUserId,
         ]);
         $this->paymentModel->update($paymentId, ['journal_id' => $journalId]);
 
@@ -193,12 +218,14 @@ class PaymentsController extends BaseController
             'account_id' => $paymentData['debit_account_id'],
             'debit' => $paymentData['total_amount'],
             'credit' => 0,
+            'user_id'    => $paymentUserId,
         ]);
         $journalEntryModel->insert([
             'journal_id' => $journalId,
             'account_id' => $paymentData['credit_account_id'],
             'debit' => 0,
             'credit' => $paymentData['total_amount'],
+            'user_id'    => $paymentUserId,
         ]);
 
         $this->updateBills($studentId);
@@ -206,13 +233,12 @@ class PaymentsController extends BaseController
         return redirect()->to('/payments')->with('success', 'Payment berhasil disimpan!');
     }
 
-    // --------------------------------------------------
-    // FORM EDIT
-    // --------------------------------------------------
     public function edit($id)
     {
         $payment = $this->paymentModel->find($id);
-        if (!$payment) throw new \CodeIgniter\Exceptions\PageNotFoundException('Pembayaran tidak ditemukan');
+        if (!$payment) {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Payment tidak ditemukan');
+        }
 
         $session = session();
         $role = $session->get('user_role');
@@ -222,27 +248,32 @@ class PaymentsController extends BaseController
             throw new \CodeIgniter\Exceptions\PageForbiddenException('Tidak boleh mengakses pembayaran orang lain');
         }
 
-        // Ambil accounts sesuai user
         $allAccounts = $role === 'admin'
             ? $this->accountModel->findAll()
             : $this->accountModel->where('user_id', $userId)->findAll();
 
+        // =====================
+        // STUDENTS (HANYA YANG BELUM LULUS)
+        // =====================
+        $studentQuery = $this->studentModel->where('status', false);
+        if ($role !== 'admin') {
+            $studentQuery->where('user_id', $userId);
+        }
+        $students = $studentQuery->findAll();
+
         $data = [
             'payment'        => $payment,
-            'students'       => $role === 'admin'
-                ? $this->studentModel->findAll()
-                : $this->studentModel->where('user_id', $userId)->findAll(),
-            'debitAccounts'  => array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['asset', 'expense'])),
-            'creditAccounts' => array_filter($allAccounts, fn($acc) => in_array($acc['type'], ['liability', 'equity', 'income'])),
+            'students'       => $students,
+            'debitAccounts'  => array_filter($allAccounts, fn($a) => in_array($a['type'], ['asset', 'expense'])),
+            'creditAccounts' => array_filter($allAccounts, fn($a) => in_array($a['type'], ['liability', 'equity', 'income'])),
+            'users'          => $role === 'admin' ? (new \App\Models\UserModel())->findAll() : [],
+            'selectedUserId' => $payment['user_id'],
             'journals'       => $this->journalModel->findAll(),
         ];
 
         return view('payments/edit', $data);
     }
 
-    // --------------------------------------------------
-    // UPDATE
-    // --------------------------------------------------
     public function update($id)
     {
         $payment = $this->paymentModel->find($id);
@@ -264,8 +295,13 @@ class PaymentsController extends BaseController
             'date'              => 'required',
             'method'            => 'permit_empty|string',
             'reference'         => 'permit_empty|string',
-            'reference_file'    => 'permit_empty|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]'
+            'reference_file'    => 'permit_empty|max_size[reference_file,2048]|ext_in[reference_file,jpg,jpeg,png,pdf]',
         ];
+
+        // Validasi user_id untuk admin
+        if ($role === 'admin') {
+            $validationRules['user_id'] = 'required|integer';
+        }
 
         if (!$this->validate($validationRules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
@@ -289,6 +325,9 @@ class PaymentsController extends BaseController
             }
         }
 
+        // Tentukan user_id payment
+        $paymentUserId = $role === 'admin' ? $this->request->getPost('user_id') : $userId;
+
         $data = [
             'student_id'        => $studentId,
             'debit_account_id'  => $this->request->getPost('debit_account_id'),
@@ -297,9 +336,10 @@ class PaymentsController extends BaseController
             'date'              => $this->request->getPost('date'),
             'method'            => $this->request->getPost('method'),
             'reference'         => $this->request->getPost('reference'),
-            'user_id'           => $userId,
+            'user_id'           => $paymentUserId,
         ];
 
+        // Upload file referensi
         $file = $this->request->getFile('reference_file');
         if ($file && $file->isValid() && !$file->hasMoved()) {
             if (!empty($payment['reference_file']) && file_exists(ROOTPATH . 'public/uploads/' . $payment['reference_file'])) {
@@ -310,15 +350,17 @@ class PaymentsController extends BaseController
             $data['reference_file'] = $newName;
         }
 
+        // Update payment
         $this->paymentModel->update($id, $data);
 
+        // Update jurnal jika ada
         if ($payment['journal_id']) {
             $refText = $data['reference'] ? " - Ref: {$data['reference']}" : "";
             $description = "Payment dari {$student['name']} (NIS: {$student['nis']}){$refText}";
             $this->journalModel->update($payment['journal_id'], [
                 'date' => $data['date'],
                 'description' => $description,
-                'user_id' => $userId,
+                'user_id' => $paymentUserId,
             ]);
 
             $journalEntryModel = new \App\Models\JournalEntryModel();
@@ -328,12 +370,14 @@ class PaymentsController extends BaseController
                 'account_id' => $data['debit_account_id'],
                 'debit' => $data['total_amount'],
                 'credit' => 0,
+                'user_id'    => $paymentUserId,
             ]);
             $journalEntryModel->insert([
                 'journal_id' => $payment['journal_id'],
                 'account_id' => $data['credit_account_id'],
                 'debit' => 0,
                 'credit' => $data['total_amount'],
+                'user_id'    => $paymentUserId,
             ]);
         }
 
@@ -456,25 +500,26 @@ class PaymentsController extends BaseController
         ];
     }
 
-    // --------------------------------------------------
-    // PRINT RECEIPT
-    // --------------------------------------------------
     public function receipt($payment_id)
     {
+        // 🔥 WAJIB: hentikan semua output sebelumnya
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
         $payment = $this->paymentModel
             ->select('payments.*, students.name as student_name, students.nis')
             ->join('students', 'students.id = payments.student_id', 'left')
             ->where('payments.id', $payment_id)
             ->first();
 
-        if (!$payment) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Payment tidak ditemukan');
+        if (!$payment) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
 
         $session = session();
-        $role = $session->get('user_role');
-        $userId = $session->get('user_id');
-
-        if ($role !== 'admin' && $payment['user_id'] != $userId) {
-            throw new \CodeIgniter\Exceptions\PageForbiddenException('Tidak boleh mengakses pembayaran orang lain');
+        if ($session->get('user_role') !== 'admin' && $payment['user_id'] != $session->get('user_id')) {
+            throw \CodeIgniter\Exceptions\PageForbiddenException::forPageForbidden();
         }
 
         $rules = $this->studentPaymentRuleModel
@@ -485,11 +530,27 @@ class PaymentsController extends BaseController
             ->orderBy('student_payment_rules.id', 'ASC')
             ->findAll();
 
-        $dompdf = new \Dompdf\Dompdf();
-        $html = view('payments/receipt', compact('payment', 'rules'));
+        $html = view('payments/receipt', [
+            'payment'   => $payment,
+            'rules'     => $rules,
+            'datePrint' => date('d-m-Y'),
+        ]);
+
+        $dompdf = new \Dompdf\Dompdf([
+            'isRemoteEnabled' => true,
+            'defaultFont'     => 'DejaVu Sans',
+        ]);
+
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $dompdf->stream("Kwitansi-{$payment['student_name']}-{$payment['id']}.pdf", ['Attachment' => false]);
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader(
+                'Content-Disposition',
+                'inline; filename="Kwitansi-' . $payment['student_name'] . '-' . $payment['id'] . '.pdf"'
+            )
+            ->setBody($dompdf->output());
     }
 }

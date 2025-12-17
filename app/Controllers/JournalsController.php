@@ -15,6 +15,7 @@ class JournalsController extends BaseController
     protected $journalModel;
     protected $entryModel;
     protected $accountModel;
+    protected $userModel;
     protected $perPage = 10; // jumlah jurnal per halaman
 
     public function __construct()
@@ -22,6 +23,7 @@ class JournalsController extends BaseController
         $this->journalModel = new JournalModel();
         $this->entryModel = new JournalEntryModel();
         $this->accountModel = new AccountModel();
+        $this->userModel    = new UserModel();
         helper(['form', 'url']);
     }
 
@@ -85,66 +87,102 @@ class JournalsController extends BaseController
         return view('journals/index', $data);
     }
 
-    /**
-     * FORM CREATE JURNAL
-     */
     public function create()
     {
-        $data['accounts'] = $this->accountModel->findAll();
+        $session = session();
+        $role = $session->get('user_role');
+
+        $data = [
+            'accounts' => $this->accountModel->findAll(),
+            'users'    => ($role === 'admin') ? $this->userModel->findAll() : [],
+        ];
+
         return view('journals/create', $data);
     }
 
-    /**
-     * STORE: simpan jurnal + entries
-     */
     public function store()
     {
         $post = $this->request->getPost();
+        $session = session();
 
         $errors = [];
-        if (empty($post['date'])) $errors[] = 'Tanggal harus diisi';
-        if (empty($post['description'])) $errors[] = 'Deskripsi harus diisi';
-        if (empty($post['account_id']) || !is_array($post['account_id'])) $errors[] = 'Minimal satu akun harus dipilih';
 
-        $totalDebit = 0;
+        // ================= VALIDASI HEADER =================
+        if (empty($post['date'])) {
+            $errors[] = 'Tanggal harus diisi';
+        }
+
+        if (empty($post['description'])) {
+            $errors[] = 'Deskripsi harus diisi';
+        }
+
+        if (empty($post['account_id']) || !is_array($post['account_id'])) {
+            $errors[] = 'Minimal satu akun harus dipilih';
+        }
+
+        // ================= VALIDASI ENTRIES =================
+        $totalDebit  = 0;
         $totalCredit = 0;
 
         if (!empty($post['account_id'])) {
             foreach ($post['account_id'] as $i => $accountId) {
-                $type = $post['type'][$i] ?? '';
+                $type   = $post['type'][$i]   ?? '';
                 $amount = (float)($post['amount'][$i] ?? 0);
 
-                if (empty($accountId)) $errors[] = "Akun ke-" . ($i + 1) . " belum dipilih";
-                if (empty($type)) $errors[] = "Tipe akun ke-" . ($i + 1) . " harus diisi";
-                if ($amount <= 0) $errors[] = "Nominal akun ke-" . ($i + 1) . " harus lebih dari 0";
+                if (empty($accountId)) {
+                    $errors[] = "Akun ke-" . ($i + 1) . " belum dipilih";
+                }
 
-                if ($type === 'debit') $totalDebit += $amount;
-                elseif ($type === 'credit') $totalCredit += $amount;
+                if (empty($type)) {
+                    $errors[] = "Tipe akun ke-" . ($i + 1) . " harus diisi";
+                }
+
+                if ($amount <= 0) {
+                    $errors[] = "Nominal akun ke-" . ($i + 1) . " harus lebih dari 0";
+                }
+
+                if ($type === 'debit') {
+                    $totalDebit += $amount;
+                } elseif ($type === 'credit') {
+                    $totalCredit += $amount;
+                }
             }
         }
 
-        if ($totalDebit != $totalCredit) $errors[] = "Total Debit dan Kredit harus sama";
+        if ($totalDebit != $totalCredit) {
+            $errors[] = "Total Debit dan Kredit harus sama";
+        }
 
-        if ($errors) return redirect()->back()->withInput()->with('errors', $errors);
+        if ($errors) {
+            return redirect()->back()->withInput()->with('errors', $errors);
+        }
 
-        // Simpan header jurnal
+        // ================= TENTUKAN USER =================
+        $userId = $session->get('user_id');
+
+        // Admin boleh memilih user
+        if ($session->get('user_role') === 'admin' && !empty($post['user_id'])) {
+            $userId = $post['user_id'];
+        }
+
+        // ================= SIMPAN HEADER JURNAL =================
         $journalId = $this->journalModel->insert([
-            'date' => $post['date'],
+            'date'        => $post['date'],
             'description' => $post['description'],
-            'user_id' => session()->get('user_id')
+            'user_id'     => $userId
         ]);
 
-        // Simpan entries
+        // ================= SIMPAN ENTRIES =================
         foreach ($post['account_id'] as $i => $accountId) {
-            $type = $post['type'][$i];
+            $type   = $post['type'][$i];
             $amount = (float)$post['amount'][$i];
 
             $this->entryModel->insert([
                 'journal_id' => $journalId,
                 'account_id' => $accountId,
-                'debit'  => $type === 'debit' ? $amount : 0,
-                'credit' => $type === 'credit' ? $amount : 0,
-                'user_id' => session()->get('user_id')
+                'debit'      => $type === 'debit'  ? $amount : 0,
+                'credit'     => $type === 'credit' ? $amount : 0,
+                'user_id'    => $userId
             ]);
         }
 
@@ -174,9 +212,6 @@ class JournalsController extends BaseController
         ]);
     }
 
-    /**
-     * FORM EDIT JURNAL
-     */
     public function edit($id)
     {
         $journal = $this->journalModel->find($id);
@@ -188,76 +223,110 @@ class JournalsController extends BaseController
             return redirect()->to('/journals')->with('error', 'Tidak bisa mengakses jurnal ini');
         }
 
-        $entries = $this->entryModel->where('journal_id', $id)->findAll();
-        $accounts = $this->accountModel->findAll();
-
         return view('journals/edit', [
-            'journal' => $journal,
-            'entries' => $entries,
-            'accounts' => $accounts
+            'journal'  => $journal,
+            'entries'  => $this->entryModel->where('journal_id', $id)->findAll(),
+            'accounts' => $this->accountModel->findAll(),
+            'users'    => (session()->get('user_role') === 'admin')
+                ? $this->userModel->findAll()
+                : []
         ]);
     }
 
-    /**
-     * UPDATE JURNAL
-     */
     public function update($id)
     {
+        $session = session();
         $journal = $this->journalModel->find($id);
+
         if (!$journal) {
             return redirect()->back()->with('error', 'Jurnal tidak ditemukan');
         }
 
-        if (session()->get('user_role') !== 'admin' && $journal['user_id'] != session()->get('user_id')) {
+        // ================= CEK AKSES =================
+        if ($session->get('user_role') !== 'admin' && $journal['user_id'] != $session->get('user_id')) {
             return redirect()->to('/journals')->with('error', 'Tidak bisa mengakses jurnal ini');
         }
 
-        $post = $this->request->getPost();
+        $post   = $this->request->getPost();
         $errors = [];
 
-        if (empty($post['date'])) $errors[] = 'Tanggal harus diisi';
-        if (empty($post['description'])) $errors[] = 'Deskripsi harus diisi';
-        if (empty($post['account_id']) || !is_array($post['account_id'])) $errors[] = 'Minimal satu akun harus dipilih';
+        // ================= VALIDASI HEADER =================
+        if (empty($post['date'])) {
+            $errors[] = 'Tanggal harus diisi';
+        }
 
-        $totalDebit = 0;
+        if (empty($post['description'])) {
+            $errors[] = 'Deskripsi harus diisi';
+        }
+
+        if (empty($post['account_id']) || !is_array($post['account_id'])) {
+            $errors[] = 'Minimal satu akun harus dipilih';
+        }
+
+        // ================= VALIDASI ENTRIES =================
+        $totalDebit  = 0;
         $totalCredit = 0;
 
         foreach ($post['account_id'] as $i => $accountId) {
-            $type = $post['type'][$i] ?? '';
+            $type   = $post['type'][$i]   ?? '';
             $amount = (float)($post['amount'][$i] ?? 0);
 
-            if (empty($accountId)) $errors[] = "Akun ke-" . ($i + 1) . " belum dipilih";
-            if (empty($type)) $errors[] = "Tipe akun ke-" . ($i + 1) . " harus diisi";
-            if ($amount <= 0) $errors[] = "Nominal akun ke-" . ($i + 1) . " harus lebih dari 0";
+            if (empty($accountId)) {
+                $errors[] = "Akun ke-" . ($i + 1) . " belum dipilih";
+            }
 
-            if ($type === 'debit') $totalDebit += $amount;
-            elseif ($type === 'credit') $totalCredit += $amount;
+            if (empty($type)) {
+                $errors[] = "Tipe akun ke-" . ($i + 1) . " harus diisi";
+            }
+
+            if ($amount <= 0) {
+                $errors[] = "Nominal akun ke-" . ($i + 1) . " harus lebih dari 0";
+            }
+
+            if ($type === 'debit') {
+                $totalDebit += $amount;
+            } elseif ($type === 'credit') {
+                $totalCredit += $amount;
+            }
         }
 
-        if ($totalDebit != $totalCredit) $errors[] = "Total Debit dan Kredit harus sama";
+        if ($totalDebit != $totalCredit) {
+            $errors[] = "Total Debit dan Kredit harus sama";
+        }
 
-        if ($errors) return redirect()->back()->withInput()->with('errors', $errors);
+        if ($errors) {
+            return redirect()->back()->withInput()->with('errors', $errors);
+        }
 
-        // Update header jurnal
+        // ================= TENTUKAN USER =================
+        $userId = $journal['user_id'];
+
+        // Admin boleh mengganti user
+        if ($session->get('user_role') === 'admin' && !empty($post['user_id'])) {
+            $userId = $post['user_id'];
+        }
+
+        // ================= UPDATE HEADER =================
         $this->journalModel->update($id, [
-            'date' => $post['date'],
-            'description' => $post['description']
+            'date'        => $post['date'],
+            'description' => $post['description'],
+            'user_id'     => $userId
         ]);
 
-        // Hapus entri lama
+        // ================= RESET ENTRIES =================
         $this->entryModel->where('journal_id', $id)->delete();
 
-        // Simpan entri baru
+        // ================= SIMPAN ENTRIES BARU =================
         foreach ($post['account_id'] as $i => $accountId) {
-            $type = $post['type'][$i];
+            $type   = $post['type'][$i];
             $amount = (float)$post['amount'][$i];
 
             $this->entryModel->insert([
                 'journal_id' => $id,
                 'account_id' => $accountId,
-                'debit'  => $type === 'debit' ? $amount : 0,
-                'credit' => $type === 'credit' ? $amount : 0,
-                'user_id' => session()->get('user_id')
+                'debit'      => $type === 'debit'  ? $amount : 0,
+                'credit'     => $type === 'credit' ? $amount : 0,
+                'user_id'    => $userId
             ]);
         }
 

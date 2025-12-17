@@ -3,7 +3,7 @@
 
 <?php $session = session(); ?>
 <div class="container-fluid">
-    <h1 class="mb-4">Selamat Datang, <?= esc($session->get('name')) ?></h1>
+    <h1 class="mb-4">Selamat Datang, <?= esc(session()->get('user_name') ?? 'Guest') ?> <i class="fas fa-star"></i></h1>
 
     <!-- ================== Form Filter Tanggal & User ================== -->
     <div class="card mb-4 shadow-sm">

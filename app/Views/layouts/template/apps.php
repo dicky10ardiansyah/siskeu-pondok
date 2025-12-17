@@ -24,9 +24,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <!-- ✅ Summernote CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
-
     <style>
         .main-sidebar {
             position: fixed;
@@ -93,118 +90,229 @@
                 </div>
 
                 <!-- Sidebar Menu -->
+                <?php
+                $seg1 = service('uri')->getSegment(1);
+                $seg2 = service('uri')->getSegment(2);
+
+                $isDataUtamaOpen = in_array($seg1, ['accounts', 'students', 'graduates', 'classes']) || ($seg1 === 'students' && $seg2 === 'bulk-edit');
+                ?>
+
                 <?php if (session()->get('isLoggedIn')): ?>
                     <nav class="mt-2">
-                        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <ul class="nav nav-pills nav-sidebar flex-column"
+                            data-widget="treeview"
+                            role="menu"
+                            data-accordion="false">
 
-                            <!-- Menu Utama -->
+                            <!-- ================= MENU UTAMA ================= -->
                             <li class="nav-header">MENU UTAMA</li>
+
                             <li class="nav-item">
-                                <a href="<?= site_url('home') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'home' ? 'active' : '' ?>">
+                                <a href="<?= site_url('home') ?>"
+                                    class="nav-link <?= $seg1 === 'home' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-home"></i>
                                     <p>Home</p>
                                 </a>
                             </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('accounts') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'accounts' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-user"></i>
-                                    <p>Akun</p>
+                            <!-- ================= MASTER DATA ================= -->
+                            <li class="nav-header">MASTER DATA</li>
+
+                            <li class="nav-item has-treeview <?= $isDataUtamaOpen ? 'menu-open' : '' ?>">
+                                <a href="#"
+                                    class="nav-link <?= $isDataUtamaOpen ? 'active' : '' ?>">
+                                    <i class="nav-icon fas fa-database"></i>
+                                    <p>
+                                        Data Utama
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
                                 </a>
+
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('accounts') ?>"
+                                            class="nav-link <?= $seg1 === 'accounts' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Akun</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('students') ?>"
+                                            class="nav-link <?= ($seg1 === 'students' && !$seg2) ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Siswa / Santri</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('classes') ?>"
+                                            class="nav-link <?= $seg1 === 'classes' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Kelas</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('students/bulk-edit') ?>"
+                                            class="nav-link <?= ($seg1 === 'students' && $seg2 === 'bulk-edit') ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Edit Siswa Sekaligus</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('graduates') ?>"
+                                            class="nav-link <?= $seg1 === 'graduates' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Lulusan</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('transactions') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'transactions' ? 'active' : '' ?>">
+                            <!-- ================= TRANSAKSI ================= -->
+                            <li class="nav-header">TRANSAKSI</li>
+
+                            <li class="nav-item has-treeview <?= in_array($seg1, ['transactions', 'journals']) ? 'menu-open' : '' ?>">
+                                <a href="#"
+                                    class="nav-link <?= in_array($seg1, ['transactions', 'journals']) ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-exchange-alt"></i>
-                                    <p>Transaksi</p>
+                                    <p>
+                                        Transaksi
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
                                 </a>
+
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('transactions') ?>"
+                                            class="nav-link <?= $seg1 === 'transactions' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Transaksi Umum</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('journals') ?>"
+                                            class="nav-link <?= $seg1 === 'journals' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Jurnal</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('journals') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'journals' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-book"></i>
-                                    <p>Jurnal</p>
-                                </a>
-                            </li>
-
-                            <!-- Data Siswa & Santri -->
-                            <li class="nav-header">DATA SANTRI & SISWA</li>
-                            <li class="nav-item">
-                                <a href="<?= site_url('students') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'students' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-user-graduate"></i>
-                                    <p>Data Siswa/Santri</p>
-                                </a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a href="<?= site_url('graduates') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'graduates' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-graduation-cap"></i>
-                                    <p>Data Lulusan</p>
-                                </a>
-                            </li>
-
-                            <!-- Keuangan -->
+                            <!-- ================= KEUANGAN ================= -->
                             <li class="nav-header">KEUANGAN</li>
-                            <li class="nav-item">
-                                <a href="<?= site_url('billing') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'billing' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-receipt"></i>
-                                    <p>Tagihan</p>
+
+                            <li class="nav-item has-treeview <?= in_array($seg1, ['billing', 'payments', 'payment-categories']) ? 'menu-open' : '' ?>">
+                                <a href="#"
+                                    class="nav-link <?= in_array($seg1, ['billing', 'payments', 'payment-categories']) ? 'active' : '' ?>">
+                                    <i class="nav-icon fas fa-wallet"></i>
+                                    <p>
+                                        Keuangan
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
                                 </a>
+
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('billing') ?>"
+                                            class="nav-link <?= $seg1 === 'billing' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Tagihan</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('payments') ?>"
+                                            class="nav-link <?= $seg1 === 'payments' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Pembayaran</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('payment-categories') ?>"
+                                            class="nav-link <?= $seg1 === 'payment-categories' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Kategori Pembayaran</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('payments') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'payments' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-hand-holding-usd"></i>
-                                    <p>Pembayaran</p>
-                                </a>
-                            </li>
-
-                            <!-- Laporan -->
+                            <!-- ================= LAPORAN ================= -->
                             <li class="nav-header">LAPORAN</li>
-                            <li class="nav-item">
-                                <a href="<?= site_url('ledger') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'ledger' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-book-open"></i>
-                                    <p>Buku Besar / Ledger</p>
-                                </a>
-                            </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('financial-statement') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'financial-statement' && !service('uri')->getSegment(2) ? 'active' : '' ?>">
+                            <li class="nav-item has-treeview <?= $seg1 === 'financial-statement' ? 'menu-open' : '' ?>">
+                                <a href="#"
+                                    class="nav-link <?= $seg1 === 'financial-statement' ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-chart-line"></i>
-                                    <p>Laporan Keuangan</p>
+                                    <p>
+                                        Laporan Keuangan
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
                                 </a>
+
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('financial-statement') ?>"
+                                            class="nav-link <?= $seg1 === 'financial-statement' && !$seg2 ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Ringkasan</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('financial-statement/neraca') ?>"
+                                            class="nav-link <?= $seg2 === 'neraca' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Neraca</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('financial-statement/laba-rugi') ?>"
+                                            class="nav-link <?= $seg2 === 'laba-rugi' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Laba Rugi</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
 
-                            <li class="nav-item">
-                                <a href="<?= site_url('financial-statement/neraca') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'financial-statement' && service('uri')->getSegment(2) === 'neraca' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-balance-scale"></i>
-                                    <p>Neraca</p>
-                                </a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a href="<?= site_url('financial-statement/laba-rugi') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'financial-statement' && service('uri')->getSegment(2) === 'laba-rugi' ? 'active' : '' ?>">
-                                    <i class="nav-icon fas fa-file-invoice-dollar"></i>
-                                    <p>Laba Rugi</p>
-                                </a>
-                            </li>
-
-                            <!-- Admin -->
+                            <!-- ================= ADMIN ================= -->
                             <?php if (session()->get('user_role') === 'admin'): ?>
                                 <li class="nav-header">ADMINISTRASI</li>
 
-                                <li class="nav-item">
-                                    <a href="<?= site_url('user') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'user' ? 'active' : '' ?>">
-                                        <i class="nav-icon fas fa-users-cog"></i>
-                                        <p>Pengguna</p>
-                                    </a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a href="<?= site_url('setting') ?>" class="nav-link <?= service('uri')->getSegment(1) === 'setting' ? 'active' : '' ?>">
+                                <li class="nav-item has-treeview <?= in_array($seg1, ['user', 'setting']) ? 'menu-open' : '' ?>">
+                                    <a href="#"
+                                        class="nav-link <?= in_array($seg1, ['user', 'setting']) ? 'active' : '' ?>">
                                         <i class="nav-icon fas fa-cogs"></i>
-                                        <p>Pengaturan</p>
+                                        <p>
+                                            Administrasi
+                                            <i class="fas fa-angle-left right"></i>
+                                        </p>
                                     </a>
+
+                                    <ul class="nav nav-treeview">
+                                        <li class="nav-item">
+                                            <a href="<?= site_url('user') ?>"
+                                                class="nav-link <?= $seg1 === 'user' ? 'active' : '' ?>">
+                                                <i class="far fa-circle nav-icon"></i>
+                                                <p>Pengguna</p>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a href="<?= site_url('setting') ?>"
+                                                class="nav-link <?= $seg1 === 'setting' ? 'active' : '' ?>">
+                                                <i class="far fa-circle nav-icon"></i>
+                                                <p>Pengaturan</p>
+                                            </a>
+                                        </li>
+                                    </ul>
                                 </li>
                             <?php endif; ?>
 
@@ -228,7 +336,7 @@
                         </div>
                         <div class="col-sm-6">
                             <ol class="breadcrumb float-sm-right">
-                                <li class="breadcrumb-item"><a href="#">Home</a></li>
+                                <li class="breadcrumb-item"><a href="<?= site_url('home') ?>">Home</a></li>
                                 <li class="breadcrumb-item active"><?= $title; ?></li>
                             </ol>
                         </div>

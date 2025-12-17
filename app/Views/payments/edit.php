@@ -139,6 +139,24 @@
                         </div>
                     </div>
 
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <div class="form-group <?= isset(session('errors')['user_id']) ? 'is-invalid' : '' ?>">
+                            <label for="user_id">User</label>
+                            <select name="user_id" id="user_id" class="form-control">
+                                <option value="">-- Pilih User --</option>
+                                <?php $oldUser = old('user_id', $selectedUserId ?? ''); ?>
+                                <?php foreach ($users as $user) : ?>
+                                    <option value="<?= $user['id'] ?>" <?= $oldUser == $user['id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset(session('errors')['user_id'])) : ?>
+                                <div class="invalid-feedback d-block"><?= session('errors')['user_id'] ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Update

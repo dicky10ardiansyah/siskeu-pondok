@@ -25,6 +25,11 @@ class Bills extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+            'class_id' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'month' => [
                 'type'       => 'TINYINT',
                 'constraint' => 2,
@@ -70,6 +75,7 @@ class Bills extends Migration
         $this->forge->addKey(['month', 'year']);
         $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('category_id', 'payment_categories', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('class_id', 'classes', 'id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('bills');
     }
 

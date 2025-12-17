@@ -108,42 +108,29 @@ class FinancialStatementController extends BaseController
 
     public function neraca()
     {
-        $userRole   = session()->get('user_role'); // admin | user
-        $userId     = session()->get('user_id');   // id user saat ini
-        $request    = service('request');
+        $userRole = session()->get('user_role');
+        $userId   = session()->get('user_id');
+        $request  = service('request');
 
-        // Ambil filter dari GET
-        $startDate    = $request->getGet('start_date');
-        $endDate      = $request->getGet('end_date');
-        $selectedUser = $request->getGet('user_id'); // user yang dipilih admin (opsional)
+        // ====== FILTER ======
+        $startDate    = $request->getGet('start_date') ?? null;
+        $endDate      = $request->getGet('end_date') ?? null;
+        $selectedUser = $request->getGet('user_id') ?? null;
 
-        // Ambil list semua user untuk select option admin
+        // ====== USER LIST (ADMIN) ======
         $userModel = new \App\Models\UserModel();
         $users = ($userRole === 'admin') ? $userModel->findAll() : [];
 
-        // Tentukan $userId untuk filter jurnal & akun
-        if ($userRole === 'admin') {
-            if ($selectedUser) {
-                $userId = $selectedUser; // tampilkan user tertentu
-            } else {
-                $userId = null; // null = semua user
-            }
+        if ($userRole === 'admin' && $selectedUser) {
+            $userId = $selectedUser;
         }
 
-        // Ambil akun sesuai userId
-        $accounts = ($userRole === 'admin' && $userId === null)
-            ? $this->accountsModel->findAll() // semua akun untuk admin
+        // ====== AMBIL AKUN ======
+        $accounts = ($userRole === 'admin' && !$selectedUser)
+            ? $this->accountsModel->findAll()
             : $this->accountsModel->where('user_id', $userId)->findAll();
 
-        // Inisialisasi totals
-        $totals = [
-            'asset'      => 0,
-            'liability'  => 0,
-            'equity'     => 0,
-            'income'     => 0,
-            'expense'    => 0,
-        ];
-
+        // ====== INIT ======
         $detail = [
             'asset'     => [],
             'liability' => [],
@@ -152,51 +139,104 @@ class FinancialStatementController extends BaseController
             'expense'   => [],
         ];
 
+        $totals = [
+            'asset'     => 0,
+            'liability' => 0,
+            'equity'    => 0,
+            'income'    => 0,
+            'expense'   => 0,
+        ];
+
+        // ====== HITUNG SALDO AKUN DARI JURNAL ======
         foreach ($accounts as $account) {
             $builder = $this->accountsModel->db->table('journal_entries')
-                ->selectSum('journal_entries.debit', 'total_debit')
-                ->selectSum('journal_entries.credit', 'total_credit')
+                ->selectSum('journal_entries.debit', 'debit')
+                ->selectSum('journal_entries.credit', 'credit')
                 ->join('journals', 'journals.id = journal_entries.journal_id', 'left')
                 ->where('journal_entries.account_id', $account['id']);
 
-            // Filter jurnal berdasarkan user
-            if ($userRole !== 'admin' || $userId !== null) {
+            if ($userRole !== 'admin' || $selectedUser) {
                 $builder->where('journals.user_id', $userId);
             }
 
             if ($startDate) $builder->where('journals.date >=', $startDate);
             if ($endDate)   $builder->where('journals.date <=', $endDate);
 
-            $result = $builder->get()->getRowArray();
+            $row = $builder->get()->getRowArray();
 
-            $totalDebit  = (float)($result['total_debit'] ?? 0);
-            $totalCredit = (float)($result['total_credit'] ?? 0);
+            $debit  = (float) ($row['debit'] ?? 0);
+            $credit = (float) ($row['credit'] ?? 0);
 
             $saldo = match ($account['type']) {
-                'asset', 'expense' => $totalDebit - $totalCredit,
-                'income', 'liability', 'equity' => $totalCredit - $totalDebit,
-                default => 0,
+                'asset', 'expense' => $debit - $credit,
+                'liability', 'equity', 'income' => $credit - $debit,
+                default => 0
             };
 
-            $totals[$account['type']] += $saldo;
             $detail[$account['type']][] = [
                 'name'  => $account['name'],
                 'saldo' => $saldo
             ];
+
+            $totals[$account['type']] += $saldo;
         }
 
-        // Hitung laba/rugi bersih
-        $netProfit = $totals['income'] - $totals['expense'];
-        $totals['equity'] += $netProfit;
+        // ====== HITUNG TOTAL TUNGGAKAN (PIUTANG) ======
+        $billModel = new \App\Models\BillModel();
+
+        $billBuilder = $billModel
+            ->selectSum('(amount - paid_amount)', 'total_tunggakan')
+            ->where('status !=', 'paid');
+
+        if ($userRole !== 'admin' || $selectedUser) {
+            $billBuilder->where('user_id', $userId);
+        }
+
+        $row = $billBuilder->get()->getRowArray();
+        $totalTunggakan = (float) ($row['total_tunggakan'] ?? 0);
+
+        // ====== PIUTANG → ASET ======
+        if ($totalTunggakan > 0) {
+            $detail['asset'][] = [
+                'name'  => 'Piutang',
+                'saldo' => $totalTunggakan
+            ];
+            $totals['asset'] += $totalTunggakan;
+        }
+
+        // ====== PENDAPATAN BELUM DITERIMA → LIABILITY ======
+        if ($totalTunggakan > 0) {
+            $detail['liability'][] = [
+                'name'  => 'Pendapatan Belum Diterima',
+                'saldo' => $totalTunggakan
+            ];
+            $totals['liability'] += $totalTunggakan;
+        }
+
+        // ====== PENDAPATAN BELUM DITERIMA → INCOME (INFO SAJA) ======
+        if ($totalTunggakan > 0) {
+            $detail['income'][] = [
+                'name'  => 'Pendapatan Belum Diterima',
+                'saldo' => $totalTunggakan
+            ];
+
+            // Total income termasuk piutang
+            $totals['income'] += $totalTunggakan;
+        }
+
+        // ====== HITUNG LABA / DEFISIT ======
+        $incomeReal = $totals['income'] - $totalTunggakan; // income nyata tanpa piutang
+        $netProfit = $incomeReal - $totals['expense'];
+
         $detail['equity'][] = [
-            'name'  => ($netProfit >= 0 ? 'Laba Berjalan' : 'Defisit Berjalan'),
+            'name'  => $netProfit >= 0 ? 'Laba Berjalan' : 'Defisit Berjalan',
             'saldo' => $netProfit
         ];
+        $totals['equity'] += $netProfit;
 
-        // Cek keseimbangan neraca
-        $balance_check = ($totals['asset'] == $totals['liability'] + $totals['equity']);
+        // ====== CEK BALANCE ======
+        $balance_check = ($totals['asset'] == ($totals['liability'] + $totals['equity']));
 
-        // Kirim ke view
         return view('financial_statement/neraca', [
             'detail'        => $detail,
             'totals'        => $totals,

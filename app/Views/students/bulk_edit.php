@@ -14,42 +14,89 @@
                     </a>
                 </div>
             </div>
+
             <div class="card-body">
 
+                <!-- ================= FILTER & SEARCH ================= -->
+                <form id="filterForm" method="get" action="<?= base_url('students/bulk-edit') ?>" class="mb-3">
+                    <div class="form-row">
+                        <div class="col-md-4">
+                            <input type="text" name="keyword" class="form-control" placeholder="Cari Nama / NIS" value="<?= esc($keyword ?? '') ?>">
+                        </div>
+
+                        <div class="col-md-4">
+                            <select name="class" class="form-control">
+                                <option value="">-- Semua Kelas --</option>
+                                <?php foreach ($classes as $c): ?>
+                                    <option value="<?= $c['id'] ?>" <?= ($classFilter ?? '') == $c['id'] ? 'selected' : '' ?>>
+                                        <?= esc($c['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-search"></i> Cari
+                            </button>
+                        </div>
+
+                        <div class="col-md-2">
+                            <a href="<?= base_url('students/bulk-edit') ?>" class="btn btn-secondary btn-block">
+                                Reset
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                <!-- ==================================================== -->
+
                 <?php if (!empty($students)) : ?>
-                    <form action="<?= base_url('students/bulk-update') ?>" method="post">
+                    <!-- ================= BULK UPDATE FORM ================= -->
+                    <form id="bulkForm" action="<?= base_url('students/bulk-update') ?>" method="post">
                         <?= csrf_field() ?>
 
-                        <div class="callout callout-info">
-                            <!-- Pilihan global -->
+                        <div class="callout callout-info mb-3">
                             <div class="form-row">
-                                <div class="col-md-3">
-                                    <select name="class_global" id="class_global" class="form-control">
+                                <div class="col-md-3 mb-2">
+                                    <select id="class_global" class="form-control">
                                         <option value="">- Pilih Kelas -</option>
                                         <?php foreach ($classes as $class) : ?>
                                             <option value="<?= $class['id'] ?>"><?= esc($class['name']) ?></option>
                                         <?php endforeach ?>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <select name="status_global" id="status_global" class="form-control">
-                                        <option value="">- Pilih Status Lulus -</option>
+
+                                <div class="col-md-2 mb-2">
+                                    <select id="status_global" class="form-control">
+                                        <option value="">- Pilih Status -</option>
                                         <option value="1">Lulus</option>
                                         <option value="0">Belum Lulus</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <input type="text" name="school_year_global" id="school_year_global" placeholder="Tahun Lulus" maxlength="4" class="form-control">
+
+                                <div class="col-md-2 mb-2">
+                                    <input type="text" id="school_year_global" class="form-control" placeholder="Tahun Lulus" maxlength="4">
                                 </div>
-                                <div class="col-md-3">
-                                    <button type="submit" class="btn btn-success">
+
+                                <?php if (!empty($users)) : ?>
+                                    <div class="col-md-3 mb-2">
+                                        <select id="user_global" class="form-control">
+                                            <option value="">- Pilih User -</option>
+                                            <?php foreach ($users as $user) : ?>
+                                                <option value="<?= $user['id'] ?>"><?= esc($user['name']) ?></option>
+                                            <?php endforeach ?>
+                                        </select>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="col-md-2 mb-2">
+                                    <button type="submit" class="btn btn-success btn-block">
                                         <i class="fas fa-save"></i> Update Semua
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Tabel siswa -->
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
                                 <thead class="thead-dark">
@@ -58,16 +105,14 @@
                                         <th>Nama</th>
                                         <th>NIS</th>
                                         <th>Kelas</th>
-                                        <th>Status Lulus</th>
-                                        <th>Tahun Lulus</th>
+                                        <th>Status</th>
+                                        <th>Tahun</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($students as $student) : ?>
                                         <tr>
-                                            <td>
-                                                <input type="checkbox" name="student_id[]" value="<?= $student['id'] ?>" class="student-checkbox">
-                                            </td>
+                                            <td><input type="checkbox" class="student-checkbox" name="student_id[]" value="<?= $student['id'] ?>"></td>
                                             <td><?= esc($student['name']) ?></td>
                                             <td><?= esc($student['nis']) ?></td>
                                             <td><?= esc($student['class_name'] ?? '-') ?></td>
@@ -79,65 +124,59 @@
                             </table>
                         </div>
                     </form>
+                    <!-- =================================================== -->
+
                 <?php else : ?>
-                    <div class="alert alert-warning text-center">Tidak ada data siswa.</div>
+                    <div class="alert alert-warning text-center">
+                        Tidak ada data siswa
+                    </div>
                 <?php endif ?>
+
             </div>
         </div>
     </div>
 </div>
 
-<!-- Select All -->
+<!-- ================= SCRIPTS ================= -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-    document.getElementById('select-all').addEventListener('click', function() {
-        const checkboxes = document.querySelectorAll('.student-checkbox');
-        checkboxes.forEach(cb => cb.checked = this.checked);
+    // Select All
+    document.getElementById('select-all')?.addEventListener('change', function() {
+        document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = this.checked);
     });
 
-    // Kirim nilai global ke setiap siswa yang dicentang
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const classVal = document.getElementById('class_global').value;
-        const statusVal = document.getElementById('status_global').value;
-        const yearVal = document.getElementById('school_year_global').value;
+    const bulkForm = document.getElementById('bulkForm');
 
-        const checkboxes = document.querySelectorAll('.student-checkbox:checked');
-        if (checkboxes.length === 0) {
+    bulkForm?.addEventListener('submit', function(e) {
+        const checked = document.querySelectorAll('.student-checkbox:checked');
+
+        if (checked.length === 0) {
             e.preventDefault();
-            alert('Pilih minimal satu siswa!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Pilih minimal satu siswa terlebih dahulu!',
+                confirmButtonText: 'OK'
+            });
             return;
         }
 
-        checkboxes.forEach(cb => {
+        const classVal = document.getElementById('class_global').value;
+        const statusVal = document.getElementById('status_global').value;
+        const yearVal = document.getElementById('school_year_global').value;
+        const userVal = document.getElementById('user_global') ? document.getElementById('user_global').value : '';
+
+        checked.forEach(cb => {
             const id = cb.value;
 
-            // Class
-            if (classVal !== '') {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'class[' + id + ']';
-                input.value = classVal;
-                this.appendChild(input);
-            }
-
-            // Status
-            if (statusVal !== '') {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'status[' + id + ']';
-                input.value = statusVal;
-                this.appendChild(input);
-            }
-
-            // Tahun Lulus
-            if (yearVal !== '') {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'school_year[' + id + ']';
-                input.value = yearVal;
-                this.appendChild(input);
-            }
+            if (classVal !== '') bulkForm.insertAdjacentHTML('beforeend', `<input type="hidden" name="class[${id}]" value="${classVal}">`);
+            if (statusVal !== '') bulkForm.insertAdjacentHTML('beforeend', `<input type="hidden" name="status[${id}]" value="${statusVal}">`);
+            if (yearVal !== '') bulkForm.insertAdjacentHTML('beforeend', `<input type="hidden" name="school_year[${id}]" value="${yearVal}">`);
+            if (userVal !== '') bulkForm.insertAdjacentHTML('beforeend', `<input type="hidden" name="user_id[${id}]" value="${userVal}">`);
         });
     });
 </script>
+<!-- ============================================ -->
 
 <?= $this->endSection() ?>

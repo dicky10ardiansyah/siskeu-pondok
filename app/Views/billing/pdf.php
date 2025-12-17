@@ -107,9 +107,33 @@
 
 <body>
 
+    <?php
+    function tanggalIndonesia($date)
+    {
+        $bulan = [
+            1 => 'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember'
+        ];
+        $d = date('d', strtotime($date));
+        $m = (int)date('m', strtotime($date));
+        $y = date('Y', strtotime($date));
+        return "$d {$bulan[$m]} $y";
+    }
+    ?>
+
     <h2>Detail Billing</h2>
     <h4>Siswa: <?= esc($student['name']) ?></h4>
-    <p>Tanggal Cetak: <?= esc($datePrint) ?></p>
+    <p>Tanggal Cetak: <?= tanggalIndonesia($datePrint) ?></p>
 
     <!-- SUMMARY -->
     <table class="summary">
@@ -130,6 +154,7 @@
                 <th>Bulan</th>
                 <th>Tahun</th>
                 <th>Kategori</th>
+                <th>Kelas</th>
                 <th>Jumlah</th>
                 <th>Terbayar</th>
                 <th>Status</th>
@@ -146,6 +171,7 @@
                     <td><?= $b['month'] ? date('F', mktime(0, 0, 0, $b['month'], 10)) : '-' ?></td>
                     <td><?= $b['year'] ?></td>
                     <td><?= $b['category_name'] ?></td>
+                    <td><?= esc($b['kelas']) ?></td>
                     <td>Rp <?= number_format($b['amount'], 0, ',', '.') ?></td>
                     <td>
                         Rp <?= number_format($b['paid_amount'], 0, ',', '.') ?>
@@ -164,9 +190,6 @@
                                 Rp <?= number_format($p['amount'], 0, ',', '.') ?>
                                 (<?= date('d M Y', strtotime($p['created_at'])) ?>)<br>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                        <?php if (!empty($b['partial_reason'])): ?>
-                            <small><?= $b['partial_reason'] ?></small>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -214,12 +237,40 @@
                                 (<?= date('d M Y', strtotime($p['created_at'])) ?>)<br>
                             <?php endforeach; ?>
                         <?php endif; ?>
-                        <?php if (!empty($b['partial_reason'])): ?>
-                            <small><?= $b['partial_reason'] ?></small>
-                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
+        </tbody>
+    </table>
+
+    <!-- PAYMENT HISTORY -->
+    <div class="section-title">Daftar Pembayaran Siswa</div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Tanggal</th>
+                <th>Jumlah</th>
+                <th>Metode</th>
+                <th>Referensi</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php $no = 1;
+            foreach ($payments as $p): ?>
+                <tr>
+                    <td><?= $no++ ?></td>
+                    <td><?= $p['date'] ? date('d M Y', strtotime($p['date'])) : '-' ?></td>
+                    <td>Rp <?= number_format($p['total_amount'], 0, ',', '.') ?></td>
+                    <td><?= esc($p['method'] ?? '-') ?></td>
+                    <td><?= esc($p['reference'] ?? '-') ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($payments)): ?>
+                <tr>
+                    <td colspan="5">Belum ada pembayaran</td>
+                </tr>
+            <?php endif; ?>
         </tbody>
     </table>
 

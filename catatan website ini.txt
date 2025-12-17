@@ -1,0 +1,34 @@
+***************** untuk pengurus **************
+user
+user123
+***************** untuk admin *****************
+admin
+admin4622
+***************** untuk super *****************
+superadmin
+superadmin4622$
+***************** perubahan whatsapp sesuai kebutuhan *****************
+<?php
+function whatsappBillingLink($student, $totalBills, $amountDueNow, $pdfSecureUrl)
+{
+    if (empty($student['phone'])) return null;
+
+    $phone = preg_replace('/[^0-9]/', '', $student['phone']);
+    if (substr($phone, 0, 1) === '0') {
+        $phone = '62' . substr($phone, 1);
+    }
+
+    $message =
+        "Yth. Orang Tua/Wali {$student['name']}\n\n" .
+        "Berikut kami sampaikan informasi tagihan siswa:\n\n" .
+        "Nama: {$student['name']}\n" .
+        "Total Tagihan: Rp " . number_format($totalBills, 0, ',', '.') . "\n" .
+        "Sisa Tagihan: Rp " . number_format($amountDueNow, 0, ',', '.') . "\n\n" .
+        "Detail tagihan (PDF):\n" .
+        $pdfSecureUrl . "\n\n" .
+        "Terima kasih.";
+
+    return 'https://wa.me/' . $phone . '?text=' . urlencode($message);
+}
+?>
+**************************************************

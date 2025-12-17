@@ -6,133 +6,85 @@
     <style>
         @page {
             size: A4;
-            margin: 10mm;
+            margin: 15mm;
         }
 
         body {
             font-family: Arial, sans-serif;
+            font-size: 12px;
             margin: 0;
             padding: 0;
         }
 
-        /* Container kwitansi */
         .kwitansi {
-            width: 100%;
             border: 1px solid #000;
-            padding: 10px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-            page-break-inside: avoid;
-            /* agar tidak terpotong */
+            padding: 20px;
         }
 
-        /* Tinggi tiap kwitansi untuk 2 per halaman */
-        .half-page {
-            height: calc((297mm - 30mm) / 2);
-            /* A4 tinggi 297mm, margin top+bottom */
+        .header {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 20px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
         }
 
-        table,
-        th,
-        td {
-            border: 1px solid #000;
-        }
-
-        th,
         td {
             padding: 5px;
-            text-align: left;
         }
 
-        th {
-            background: #f2f2f2;
+        .amount {
+            text-align: right;
+            font-weight: bold;
         }
 
-        /* Kotak tanda tangan */
         .signature-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 30px;
         }
 
         .signature-table td {
-            border: 1px solid #000;
             width: 50%;
-            height: 60px;
             text-align: center;
+            height: 60px;
             vertical-align: bottom;
-            padding-bottom: 5px;
-            font-size: 12px;
+            border-top: 1px solid #000;
         }
 
         .footer {
             text-align: center;
             font-size: 12px;
-            margin-top: 5px;
+            margin-top: 10px;
         }
     </style>
 </head>
 
 <body>
-
-    <!-- Kwitansi 1 -->
-    <div class="kwitansi half-page">
-        <table>
-            <tr>
-                <td colspan="2" style="text-align:center; font-weight:bold;">KWITANSI PEMBAYARAN</td>
-            </tr>
-            <tr>
-                <td>ID Payment: <?= $payment['id'] ?></td>
-                <td>Tanggal: <?php
-                                setlocale(LC_TIME, 'id_ID.utf8'); // atau 'indonesia' tergantung server
-                                $rawDate = $payment['date'];
-                                echo strftime('%d %B %Y', strtotime($rawDate)); // contoh output: 06 Desember 2025
-                                ?>
-                </td>
-            </tr>
-        </table>
+    <div class="kwitansi">
+        <div class="header">KWITANSI PEMBAYARAN</div>
 
         <table>
             <tr>
-                <td><strong>Nama Siswa:</strong> <?= $payment['student_name'] ?> (NIS: <?= $payment['nis'] ?>)</td>
+                <td><strong>ID Payment:</strong> <?= $payment['id'] ?></td>
+                <td style="text-align:right;"><strong>Tanggal:</strong> <?= strftime('%d %B %Y', strtotime($payment['date'])) ?></td>
             </tr>
             <tr>
-                <td><strong>Metode Pembayaran:</strong> <?= $payment['method'] ?? '-' ?></td>
+                <td colspan="2"><strong>Nama Siswa:</strong> <?= $payment['student_name'] ?> (NIS: <?= $payment['nis'] ?>)</td>
             </tr>
             <tr>
-                <td><strong>Referensi:</strong> <?= $payment['reference'] ?? '' ?></td>
+                <td colspan="2"><strong>Metode Pembayaran:</strong> <?= $payment['method'] ?? '-' ?></td>
             </tr>
-        </table>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Ceklis</th>
-                    <th>Deskripsi</th>
-                    <th>Jumlah</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($rules as $rule): ?>
-                    <tr>
-                        <td style="text-align:center;"><input type="checkbox"></td>
-                        <td><?= $rule['category_name'] ?></td>
-                        <td>Rp <?= number_format($rule['amount'], 2, ',', '.') ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                <tr>
-                    <td></td>
-                    <td>Total</td>
-                    <td>Rp <?= number_format($payment['total_amount'], 2, ',', '.') ?></td>
-                </tr>
-            </tbody>
+            <tr>
+                <td colspan="2"><strong>Referensi:</strong> <?= $payment['reference'] ?? '-' ?></td>
+            </tr>
+            <tr>
+                <td colspan="2" class="amount">Total Pembayaran: Rp <?= number_format($payment['total_amount'], 2, ',', '.') ?></td>
+            </tr>
         </table>
 
         <table class="signature-table">
@@ -142,11 +94,8 @@
             </tr>
         </table>
 
-        <div class="footer">
-            Terima kasih atas pembayaran Anda.
-        </div>
+        <div class="footer">Terima kasih atas pembayaran Anda.</div>
     </div>
-
 </body>
 
 </html>

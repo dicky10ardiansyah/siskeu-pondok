@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\UserModel;
 use App\Models\StudentModel;
 use App\Controllers\BaseController;
 use App\Models\PaymentCategoryModel;
@@ -15,6 +16,7 @@ class StudentPaymentRuleController extends BaseController
     protected $categoryModel;
     protected $ruleModel;
     protected $classRuleModel;
+    protected $userModel;
 
     public function __construct()
     {
@@ -22,98 +24,66 @@ class StudentPaymentRuleController extends BaseController
         $this->categoryModel  = new PaymentCategoryModel();
         $this->ruleModel      = new StudentPaymentRuleModel();
         $this->classRuleModel = new PaymentCategoryClassRuleModel();
+        $this->userModel      = new UserModel();
     }
 
-    // --------------------------------------------------
-    // Sync kategori sesuai hak akses user
-    // --------------------------------------------------
-    protected function syncCategoriesToStudents()
-    {
-        $userId = session()->get('user_id');
-
-        $categories = $this->isAdmin()
-            ? $this->categoryModel->findAll()
-            : $this->categoryModel->where('user_id', $userId)->findAll();
-
-        $students = $this->studentModel->findAll();
-
-        foreach ($students as $student) {
-            foreach ($categories as $category) {
-
-                if (empty($category['is_mandatory'])) {
-                    continue;
-                }
-
-                $existing = $this->ruleModel
-                    ->where('student_id', $student['id'])
-                    ->where('category_id', $category['id'])
-                    ->first();
-
-                if ($existing) {
-                    continue;
-                }
-
-                $classRule = $this->classRuleModel
-                    ->where('class_id', $student['class'])
-                    ->where('category_id', $category['id'])
-                    ->first();
-
-                $amount = $classRule['amount']
-                    ?? $category['default_amount']
-                    ?? 0;
-
-                $this->ruleModel->insert([
-                    'student_id'   => $student['id'],
-                    'category_id'  => $category['id'],
-                    'amount'       => $amount,
-                    'is_mandatory' => 1,
-                    'user_id'      => $category['user_id'],
-                ]);
-            }
-        }
-    }
-
-    // --------------------------------------------------
-    // Edit tarif siswa
-    // --------------------------------------------------
     public function editByStudent($student_id)
     {
-        $this->syncCategoriesToStudents();
-
         $student = $this->studentModel->find($student_id);
         if (!$student) {
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Siswa tidak ditemukan');
         }
 
-        $rulesQuery = $this->ruleModel
+        // rules siswa
+        $rules = $this->ruleModel
             ->select('student_payment_rules.*, payment_categories.name as category_name')
             ->join('payment_categories', 'payment_categories.id = student_payment_rules.category_id')
-            ->where('student_payment_rules.student_id', $student_id);
+            ->where('student_payment_rules.student_id', $student_id)
+            ->findAll();
 
-        if (!$this->isAdmin()) {
-            $rulesQuery->where('student_payment_rules.user_id', session()->get('user_id'));
+        $session = session();
+        $role    = $session->get('user_role');
+        $loginUserId = $session->get('user_id');
+
+        // =============================
+        // ADMIN boleh pilih user_id
+        // =============================
+        $users = [];
+        if ($role === 'admin') {
+            $users = $this->userModel->findAll();
+            $selectedUserId = $this->request->getGet('user_id') ?? $student['user_id'];
+        } else {
+            $selectedUserId = $loginUserId;
         }
 
-        $rules = $rulesQuery->findAll();
+        // kategori mengikuti user terpilih
+        $categoryQuery = $this->categoryModel;
+        if ($role !== 'admin') {
+            $categoryQuery->where('user_id', $loginUserId);
+        } else {
+            $categoryQuery->where('user_id', $selectedUserId);
+        }
 
-        $categories = $this->isAdmin()
-            ? $this->categoryModel->findAll()
-            : $this->categoryModel->where('user_id', session()->get('user_id'))->findAll();
+        $categories = $categoryQuery->findAll();
 
+        // class rule
         $classRules = $this->classRuleModel
             ->where('class_id', $student['class'])
             ->findAll();
 
-        return view('student_rules/edit_multiple', compact(
-            'student',
-            'rules',
-            'categories',
-            'classRules'
-        ));
+        return view('student_rules/edit_multiple', [
+            'student'        => $student,
+            'rules'          => $rules,
+            'categories'     => $categories,
+            'classRules'     => $classRules,
+            'users'          => $users,
+            'selectedUserId' => $selectedUserId,
+            'role'           => $role,
+        ]);
     }
 
     // --------------------------------------------------
-    // Update multiple rule siswa
+    // Update multiple rule
     // --------------------------------------------------
     public function updateByStudent($student_id)
     {
@@ -129,33 +99,16 @@ class StudentPaymentRuleController extends BaseController
             if (strpos($key, 'new_') === 0) {
                 $categoryId = str_replace('new_', '', $key);
 
-                if (!$this->isAdmin()) {
-                    $category = $this->categoryModel
-                        ->where('id', $categoryId)
-                        ->where('user_id', session()->get('user_id'))
-                        ->first();
-
-                    if (!$category) {
-                        continue;
-                    }
-                }
-
                 $this->ruleModel->insert([
                     'student_id'   => $student_id,
                     'category_id'  => $categoryId,
                     'amount'       => $amount,
                     'is_mandatory' => 1,
-                    'user_id'      => session()->get('user_id'),
                 ]);
             } else {
                 // UPDATE
                 $rule = $this->ruleModel->find($key);
-
                 if (!$rule) {
-                    continue;
-                }
-
-                if (!$this->isAdmin() && $rule['user_id'] != session()->get('user_id')) {
                     continue;
                 }
 
@@ -175,17 +128,13 @@ class StudentPaymentRuleController extends BaseController
     {
         $rule = $this->ruleModel->find($rule_id);
 
-        if (
-            !$rule ||
-            $rule['student_id'] != $student_id ||
-            (!$this->isAdmin() && $rule['user_id'] != session()->get('user_id'))
-        ) {
-            return redirect()->back()->with('error', 'Akses ditolak');
+        if (!$rule || $rule['student_id'] != $student_id) {
+            return redirect()->back()->with('error', 'Data tidak valid');
         }
 
         $this->ruleModel->update($rule_id, ['is_mandatory' => 0]);
 
-        return redirect()->back()->with('success', 'Rule dinonaktifkan');
+        return redirect()->back()->with('success', 'Rule berhasil dinonaktifkan');
     }
 
     // --------------------------------------------------
@@ -195,44 +144,41 @@ class StudentPaymentRuleController extends BaseController
     {
         $rule = $this->ruleModel->find($rule_id);
 
-        if (
-            !$rule ||
-            $rule['student_id'] != $student_id ||
-            (!$this->isAdmin() && $rule['user_id'] != session()->get('user_id'))
-        ) {
-            return redirect()->back()->with('error', 'Akses ditolak');
+        if (!$rule || $rule['student_id'] != $student_id) {
+            return redirect()->back()->with('error', 'Data tidak valid');
         }
 
         $this->ruleModel->update($rule_id, ['is_mandatory' => 1]);
 
-        return redirect()->back()->with('success', 'Rule diaktifkan');
+        return redirect()->back()->with('success', 'Rule berhasil diaktifkan');
     }
 
-    // --------------------------------------------------
-    // Add rule baru
-    // --------------------------------------------------
     public function addRule($student_id)
     {
         $categoryId = $this->request->getPost('category_id');
-        $amount     = $this->request->getPost('amount');
+        $amount     = $this->request->getPost('amount') ?: 0;
 
-        if (!$this->isAdmin()) {
-            $category = $this->categoryModel
-                ->where('id', $categoryId)
-                ->where('user_id', session()->get('user_id'))
-                ->first();
-
-            if (!$category) {
-                return redirect()->back()->with('error', 'Akses ditolak');
-            }
+        $student = $this->studentModel->find($student_id);
+        if (!$student) {
+            return redirect()->back()->with('error', 'Siswa tidak ditemukan');
         }
+
+        $session = session();
+        $role    = $session->get('user_role');
+
+        // ADMIN boleh tentukan user_id
+        $userId = ($role === 'admin')
+            ? $this->request->getPost('user_id')
+            : $session->get('user_id');
 
         $this->ruleModel->insert([
             'student_id'   => $student_id,
             'category_id'  => $categoryId,
-            'amount'       => $amount ?: 0,
+            'amount'       => str_replace('.', '', $amount),
             'is_mandatory' => 0,
-            'user_id'      => session()->get('user_id'),
+            'user_id'      => $userId,
+            'created_at'   => date('Y-m-d H:i:s'),
+            'updated_at'   => date('Y-m-d H:i:s'),
         ]);
 
         return redirect()->back()->with('success', 'Rule berhasil ditambahkan');

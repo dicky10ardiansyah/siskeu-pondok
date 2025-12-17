@@ -4,7 +4,7 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class BillPayments extends Migration
+class BillingTokens extends Migration
 {
     public function up()
     {
@@ -15,19 +15,28 @@ class BillPayments extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
-            'bill_id' => [
+            'student_id' => [
+                'type'       => 'INT',
+                'unsigned'   => true,
+                'constraint' => 11,
+            ],
+            'token' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '255',
+            ],
+            'expired_at' => [
+                'type'       => 'DATETIME',
+                'null'       => false,
+            ],
+            'ip_address' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '255',
+                'null'       => true,
+            ],
+            'access_count' => [
                 'type'       => 'INT',
                 'constraint' => 11,
-                'unsigned'   => true,
-            ],
-            'payment_id' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'unsigned'   => true,
-            ],
-            'amount' => [
-                'type'       => 'DECIMAL',
-                'constraint' => '10,2',
+                'default'    => 0,
             ],
             'created_at' => [
                 'type'       => 'DATETIME',
@@ -40,13 +49,12 @@ class BillPayments extends Migration
         ]);
 
         $this->forge->addKey('id', true);
-        $this->forge->addForeignKey('bill_id', 'bills', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('payment_id', 'payments', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('bill_payments');
+        $this->forge->addForeignKey('student_id', 'students', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('billing_tokens');
     }
 
     public function down()
     {
-        $this->forge->dropTable('bill_payments');
+        $this->forge->dropTable('billing_tokens');
     }
 }

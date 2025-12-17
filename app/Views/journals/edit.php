@@ -106,6 +106,20 @@
                         <?php endif ?>
                     </div>
 
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <div class="form-group mb-3">
+                            <label for="user_id">User</label>
+                            <select name="user_id" class="form-control">
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?= $user['id'] ?>"
+                                        <?= $journal['user_id'] == $user['id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
                     <!-- Tombol -->
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">

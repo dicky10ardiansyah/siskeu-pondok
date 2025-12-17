@@ -59,11 +59,31 @@ class ClassController extends BaseController
         return view('classes/index', $data);
     }
 
+    public function create()
+    {
+        $data = [];
+
+        // Hanya admin yang membutuhkan list user
+        if (session()->get('user_role') === 'admin') {
+            $data['users'] = $this->userModel->findAll();
+        }
+
+        return view('classes/create', $data);
+    }
+
     public function store()
     {
+        // Default user_id dari session
+        $userId = session()->get('user_id');
+
+        // Jika admin, ambil dari form dropdown
+        if (session()->get('user_role') === 'admin') {
+            $userId = $this->request->getPost('user_id');
+        }
+
         $this->classModel->save([
             'name'    => $this->request->getPost('name'),
-            'user_id' => session()->get('user_id'),
+            'user_id' => $userId,
         ]);
 
         return redirect()->to('/classes')->with('success', 'Kelas ditambahkan');
@@ -77,20 +97,41 @@ class ClassController extends BaseController
             return redirect()->to('/classes')->with('error', 'Akses ditolak');
         }
 
-        return view('classes/edit', compact('class'));
+        $data = [
+            'class' => $class
+        ];
+
+        // Hanya admin dapat list user
+        if (session()->get('user_role') === 'admin') {
+            $data['users'] = $this->userModel->findAll();
+        }
+
+        return view('classes/edit', $data);
     }
 
     public function update($id)
     {
         $class = $this->classModel->find($id);
 
-        if (!$class || !$this->authorize($class['user_id'])) {
+        if (!$class) {
+            return redirect()->to('/classes')->with('error', 'Data tidak ditemukan');
+        }
+
+        // Cek otorisasi
+        if (session()->get('user_role') !== 'admin' && $class['user_id'] != session()->get('user_id')) {
             return redirect()->to('/classes')->with('error', 'Akses ditolak');
         }
 
-        $this->classModel->update($id, [
+        $data = [
             'name' => $this->request->getPost('name'),
-        ]);
+        ];
+
+        // Hanya admin yang bisa ubah pemilik kelas
+        if (session()->get('user_role') === 'admin') {
+            $data['user_id'] = $this->request->getPost('user_id');
+        }
+
+        $this->classModel->update($id, $data);
 
         return redirect()->to('/classes')->with('success', 'Kelas diperbarui');
     }

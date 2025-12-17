@@ -12,9 +12,6 @@
                     <a href="<?= base_url('payments/create') ?>" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Tambah Pembayaran
                     </a>
-                    <a href="<?= base_url('payment-categories') ?>" class="btn btn-outline-primary">
-                        <i class="fas fa-list"></i> Kategori Pembayaran
-                    </a>
                 </div>
             </div>
 

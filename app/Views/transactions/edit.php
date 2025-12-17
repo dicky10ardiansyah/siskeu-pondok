@@ -103,6 +103,20 @@
                         <?php endif ?>
                     </div>
 
+                    <?php if ($role === 'admin') : ?>
+                        <div class="form-group">
+                            <label for="user_id">User</label>
+                            <select name="user_id" id="user_id" class="form-control">
+                                <option value="">-- Pilih User --</option>
+                                <?php foreach ($users as $u) : ?>
+                                    <option value="<?= $u['id'] ?>" <?= old('user_id', $transaction['user_id']) == $u['id'] ? 'selected' : '' ?>>
+                                        <?= esc($u['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                    <?php endif ?>
+
                     <button type="submit" class="btn btn-primary">Update</button>
                     <a href="/transactions" class="btn btn-secondary">Batal</a>
                 </form>

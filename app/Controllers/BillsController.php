@@ -6,6 +6,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use App\Models\BillModel;
 use App\Models\UserModel;
+use App\Models\PaymentModel;
 use App\Models\StudentModel;
 use App\Models\BillPaymentModel;
 use App\Controllers\BaseController;
@@ -22,6 +23,7 @@ class BillsController extends BaseController
     protected $billPaymentModel;
     protected $studentPaymentRuleModel;
     protected $userModel;
+    protected $paymentModel;
 
     protected $helpers = ['form', 'url'];
 
@@ -33,6 +35,7 @@ class BillsController extends BaseController
         $this->billPaymentModel = new BillPaymentModel();
         $this->studentPaymentRuleModel = new StudentPaymentRuleModel();
         $this->userModel = new UserModel();
+        $this->paymentModel = new PaymentModel();
     }
 
     public function index()
@@ -42,14 +45,18 @@ class BillsController extends BaseController
         $filter_status = $this->request->getGet('filter_status');
         $filter_month = $this->request->getGet('filter_month');
         $filter_year = $this->request->getGet('filter_year');
+        $filter_class = $this->request->getGet('filter_class');
 
         $session = session();
         $userRole = $session->get('user_role');
         $userId   = $session->get('user_id');
 
+        // Query siswa + join kelas, hanya siswa belum lulus
         $builder = $this->billModel
-            ->select('students.id as student_id, students.name as student, students.user_id')
+            ->select('students.id as student_id, students.name as student, classes.name as kelas, students.user_id')
             ->join('students', 'students.id = bills.student_id')
+            ->join('classes', 'classes.id = students.class', 'left')
+            ->where('students.status', false) // Hanya siswa belum lulus
             ->distinct()
             ->orderBy('students.name', 'ASC');
 
@@ -59,11 +66,14 @@ class BillsController extends BaseController
             $builder->where('students.user_id', $filter_user_id);
         }
 
+        if ($filter_class) {
+            $builder->where('classes.id', $filter_class);
+        }
+
         if ($keyword) {
             $builder->like('students.name', $keyword);
         }
 
-        // Filter bulan & tahun (opsional)
         if ($filter_month) {
             $builder->where('bills.month', $filter_month);
         }
@@ -74,7 +84,6 @@ class BillsController extends BaseController
         $students = $builder->paginate(10, 'bills');
         $pager = $this->billModel->pager;
 
-        // Hitung status tagihan dan filter status di PHP
         $filteredStudents = [];
         foreach ($students as $s) {
             $unpaidCount = $this->billModel
@@ -83,16 +92,21 @@ class BillsController extends BaseController
                 ->countAllResults();
 
             $s['status_tagihan'] = $unpaidCount === 0 ? 'Lunas' : 'Tunggakan';
+            $s['kelas'] = $s['kelas'] ?? '-';
 
             if (!$filter_status || $filter_status === $s['status_tagihan']) {
                 $filteredStudents[] = $s;
             }
         }
 
+        // Ambil daftar user & kelas untuk dropdown filter
         $users = [];
         if ($userRole === 'admin') {
             $users = $this->userModel->findAll();
         }
+
+        $db = \Config\Database::connect();
+        $classes = $db->table('classes')->orderBy('name', 'ASC')->get()->getResultArray();
 
         return view('billing/index', [
             'bills' => $filteredStudents,
@@ -102,7 +116,9 @@ class BillsController extends BaseController
             'filter_status' => $filter_status,
             'filter_month' => $filter_month,
             'filter_year' => $filter_year,
-            'users' => $users
+            'filter_class' => $filter_class,
+            'users' => $users,
+            'classes' => $classes
         ]);
     }
 
@@ -110,6 +126,7 @@ class BillsController extends BaseController
     {
         $month = $this->request->getPost('month');
         $year  = $this->request->getPost('year');
+        $userIdFilter = $this->request->getPost('user_id');
 
         if (!$month || !$year) {
             return redirect()->back()->with('error', 'Bulan dan Tahun harus dipilih!');
@@ -119,16 +136,20 @@ class BillsController extends BaseController
         $userRole = $session->get('user_role');
         $userId   = $session->get('user_id');
 
-        // Ambil siswa sesuai role
-        $students = $userRole === 'admin'
-            ? $this->studentModel->findAll()
-            : $this->studentModel->where('user_id', $userId)->findAll();
+        // Ambil siswa sesuai role & filter user
+        if ($userRole === 'admin') {
+            $students = $userIdFilter
+                ? $this->studentModel->where('user_id', $userIdFilter)->where('status', false)->findAll()
+                : $this->studentModel->where('status', false)->findAll();
+        } else {
+            $students = $this->studentModel->where('user_id', $userId)->where('status', false)->findAll();
+        }
 
         if (!$students) {
             return redirect()->back()->with('error', 'Tidak ada siswa.');
         }
 
-        // Ambil kategori pembayaran sesuai user
+        // Ambil kategori pembayaran sesuai user siswa
         $categories = $userRole === 'admin'
             ? $this->categoryModel->findAll()
             : $this->categoryModel->where('user_id', $userId)->findAll();
@@ -140,14 +161,13 @@ class BillsController extends BaseController
         $generated = false;
 
         foreach ($students as $student) {
+            if ($student['status']) continue; // skip siswa sudah lulus
             if ($userRole !== 'admin' && $student['user_id'] != $userId) continue;
 
-            // Ambil rule siswa
             $rules = $this->studentPaymentRuleModel
                 ->where('student_id', $student['id'])
                 ->findAll();
 
-            // Jika belum ada rule → buat dari kategori
             if (!$rules) {
                 foreach ($categories as $category) {
                     if ($userRole !== 'admin' && $category['user_id'] != $student['user_id']) continue;
@@ -180,18 +200,17 @@ class BillsController extends BaseController
                 $existingBillQuery = $this->billModel
                     ->where('student_id', $student['id'])
                     ->where('category_id', $rule['category_id']);
-
                 if ($category['billing_type'] === 'monthly') {
                     $existingBillQuery->where('month', $month)->where('year', $year);
                 }
-
                 if ($existingBillQuery->first()) continue;
 
                 $amount = $rule['amount'] ?? $category['default_amount'] ?? 0;
 
-                // Insert tagihan baru
+                // Insert tagihan baru dengan class_id untuk historis
                 $this->billModel->insert([
                     'student_id'  => $student['id'],
+                    'class_id'    => $student['class'], // simpan kelas saat generate
                     'category_id' => $rule['category_id'],
                     'month'       => $billMonth,
                     'year'        => $year,
@@ -215,19 +234,18 @@ class BillsController extends BaseController
 
     public function detail($student_id)
     {
-        $student = $this->studentModel->find($student_id);
-        if (!$student) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Siswa tidak ditemukan');
-
-        $session = session();
+        $session  = session();
         $userRole = $session->get('user_role');
         $userId   = $session->get('user_id');
-        if ($userRole !== 'admin' && $student['user_id'] != $userId) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Siswa tidak ditemukan');
-        }
+
+        $student = $this->studentModel->find($student_id);
+        if (!$student) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Siswa tidak ditemukan');
+        if ($userRole !== 'admin' && $student['user_id'] != $userId) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Siswa tidak ditemukan');
 
         $bills = $this->billModel
-            ->select('bills.*, payment_categories.name as category_name, payment_categories.billing_type')
+            ->select('bills.*, payment_categories.name as category_name, payment_categories.billing_type, classes.name as kelas')
             ->join('payment_categories', 'payment_categories.id = bills.category_id')
+            ->join('classes', 'classes.id = bills.class_id', 'left')
             ->where('student_id', $student_id)
             ->orderBy('year', 'ASC')
             ->orderBy('month', 'ASC')
@@ -239,16 +257,15 @@ class BillsController extends BaseController
         $one_time = [];
 
         foreach ($bills as $bill) {
-            $paidAmount = (float)($bill['paid_amount'] ?? 0);
-            $status = $paidAmount >= $bill['amount'] ? 'paid' : ($paidAmount > 0 ? 'partial' : 'unpaid');
-
+            $paidAmount = (float) ($bill['paid_amount'] ?? 0);
             $billData = [
                 'id' => $bill['id'],
                 'category' => $bill['category_name'] ?? '-',
+                'kelas' => $bill['kelas'] ?? '-', // kelas historis
                 'amount' => $bill['amount'],
                 'paid_amount' => $paidAmount,
-                'status' => $status,
-                'is_partial_payment' => $paidAmount > 0 && $paidAmount < $bill['amount'], // <== tambahkan ini
+                'status' => $paidAmount >= $bill['amount'] ? 'paid' : ($paidAmount > 0 ? 'partial' : 'unpaid'),
+                'is_partial_payment' => $paidAmount > 0 && $paidAmount < $bill['amount'],
                 'month' => $bill['month'],
                 'year' => $bill['year']
             ];
@@ -262,7 +279,17 @@ class BillsController extends BaseController
 
         $totalPaymentsWithOverpaid = $totalPayments + ($student['overpaid'] ?? 0);
         $amountDueNow = max($totalBills - $totalPaymentsWithOverpaid, 0);
-        $overpaid = max($totalPaymentsWithOverpaid - $totalBills, 0);
+        $overpaid     = max($totalPaymentsWithOverpaid - $totalBills, 0);
+
+        $token = bin2hex(random_bytes(32));
+        \Config\Database::connect()->table('billing_tokens')->insert([
+            'student_id'  => $student['id'],
+            'token'       => $token,
+            'expired_at'  => date('Y-m-d H:i:s', strtotime('+1 day')),
+            'access_count' => 0,
+            'ip_address'  => null
+        ]);
+        $pdfSecureUrl = base_url('billing/pdf-secure/' . $token);
 
         return view('billing/detail', [
             'student' => $student,
@@ -271,25 +298,71 @@ class BillsController extends BaseController
             'totalBills' => $totalBills,
             'totalPayments' => $totalPaymentsWithOverpaid,
             'amountDueNow' => $amountDueNow,
-            'overpaid' => $overpaid
+            'overpaid' => $overpaid,
+            'pdfSecureUrl' => $pdfSecureUrl,
+        ]);
+    }
+
+    public function deleteDetail($id)
+    {
+        // Pastikan request AJAX
+        if (!$this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'error' => 'Request tidak valid'
+            ]);
+        }
+
+        $session  = session();
+        $userRole = $session->get('user_role');
+        $userId   = $session->get('user_id');
+
+        // Cari bill
+        $bill = $this->billModel->find($id);
+        if (!$bill) {
+            return $this->response->setJSON([
+                'error' => 'Data tagihan tidak ditemukan'
+            ]);
+        }
+
+        // Ambil data siswa
+        $student = $this->studentModel->find($bill['student_id']);
+        if (!$student) {
+            return $this->response->setJSON([
+                'error' => 'Data siswa tidak ditemukan'
+            ]);
+        }
+
+        // Validasi hak akses
+        if ($userRole !== 'admin' && $student['user_id'] != $userId) {
+            return $this->response->setJSON([
+                'error' => 'Anda tidak punya akses menghapus data ini'
+            ]);
+        }
+
+        // ❗ Optional: cegah hapus jika sudah ada pembayaran
+        if ((float)$bill['paid_amount'] > 0) {
+            return $this->response->setJSON([
+                'error' => 'Tagihan sudah memiliki pembayaran, tidak bisa dihapus'
+            ]);
+        }
+
+        // Hapus data
+        $this->billModel->delete($id);
+
+        return $this->response->setJSON([
+            'success' => 'Tagihan berhasil dihapus'
         ]);
     }
 
     public function pdf($student_id)
     {
         $student = $this->studentModel->find($student_id);
-        if (!$student) throw \CodeIgniter\Exceptions\PageNotFoundException('Siswa tidak ditemukan');
-
-        $session = session();
-        $userRole = $session->get('user_role');
-        $userId   = $session->get('user_id');
-        if ($userRole !== 'admin' && $student['user_id'] != $userId) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException('Siswa tidak ditemukan');
-        }
+        if (!$student) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
 
         $bills = $this->billModel
-            ->select('bills.*, payment_categories.name as category_name, payment_categories.billing_type')
+            ->select('bills.*, payment_categories.name as category_name, payment_categories.billing_type, classes.name as kelas')
             ->join('payment_categories', 'payment_categories.id = bills.category_id')
+            ->join('classes', 'classes.id = bills.class_id', 'left')
             ->where('student_id', $student_id)
             ->orderBy('year', 'ASC')
             ->orderBy('month', 'ASC')
@@ -307,11 +380,13 @@ class BillsController extends BaseController
             $billData = [
                 'id' => $bill['id'],
                 'category_name' => $bill['category_name'] ?? '-',
+                'kelas' => $bill['kelas'] ?? '-',
                 'amount' => $bill['amount'],
                 'paid_amount' => $paidAmount,
                 'status' => $status,
+                'is_partial_payment' => $paidAmount > 0 && $paidAmount < $bill['amount'],
                 'month' => $bill['month'],
-                'year' => $bill['year']
+                'year' => $bill['year'],
             ];
 
             if ($bill['billing_type'] === 'monthly') $monthly[] = $billData;
@@ -325,23 +400,98 @@ class BillsController extends BaseController
         $amountDueNow = max($totalBills - $totalPaymentsWithOverpaid, 0);
         $overpaid = max($totalPaymentsWithOverpaid - $totalBills, 0);
 
-        $datePrint = date('d-m-Y');
+        $payments = (new \App\Models\PaymentModel())
+            ->where('student_id', $student_id)
+            ->orderBy('date', 'ASC')
+            ->findAll();
 
         $html = view('billing/pdf', [
             'student' => $student,
             'monthly' => $monthly,
             'one_time' => $one_time,
+            'payments' => $payments,
             'totalBills' => $totalBills,
             'totalPayments' => $totalPaymentsWithOverpaid,
             'amountDueNow' => $amountDueNow,
             'overpaid' => $overpaid,
-            'datePrint' => $datePrint
+            'datePrint' => date('d-m-Y'),
         ]);
 
-        $dompdf = new \Dompdf\Dompdf();
+        while (ob_get_level() > 0) ob_end_clean();
+
+        $dompdf = new \Dompdf\Dompdf([
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+        ]);
+
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $dompdf->stream("Tagihan-{$student['name']}.pdf", ['Attachment' => false]);
+
+        $pdf = $dompdf->output();
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="billing_' . $student['name'] . '.pdf"')
+            ->setHeader('Content-Length', strlen($pdf))
+            ->setBody($pdf);
+    }
+
+    public function pdfSecure($token)
+    {
+        $db = \Config\Database::connect();
+        $ip = $this->request->getIPAddress();
+
+        $row = $db->table('billing_tokens')
+            ->where('token', $token)
+            ->where('expired_at >=', date('Y-m-d H:i:s'))
+            ->get()
+            ->getRowArray();
+
+        if (!$row) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
+                'Link tidak valid atau sudah kadaluarsa'
+            );
+        }
+
+        // =========================
+        // 🔐 IP BINDING
+        // =========================
+        if (empty($row['ip_address'])) {
+            // akses pertama → simpan IP
+            $db->table('billing_tokens')
+                ->where('id', $row['id'])
+                ->update(['ip_address' => $ip]);
+        } elseif ($row['ip_address'] !== $ip) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
+                'Akses ditolak'
+            );
+        }
+
+        // =========================
+        // 🔢 BATASI 5x AKSES
+        // =========================
+        if ($row['access_count'] >= 5) {
+            $db->table('billing_tokens')->where('id', $row['id'])->delete();
+
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
+                'Link sudah tidak bisa digunakan'
+            );
+        }
+
+        // tambah counter
+        $db->table('billing_tokens')
+            ->where('id', $row['id'])
+            ->set('access_count', 'access_count + 1', false)
+            ->update();
+
+        // =========================
+        // 🔥 TOKEN SEKALI PAKAI (OPTIONAL)
+        // =========================
+        // kalau mau SEKALI BUKA, uncomment baris ini:
+        // $db->table('billing_tokens')->where('id', $row['id'])->delete();
+
+        return $this->pdf($row['student_id']);
     }
 }

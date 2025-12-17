@@ -15,15 +15,47 @@ class StudentController extends BaseController
     protected $studentModel;
     protected $classModel;
     protected $userModel;
+    protected $paymentCategoryClassRuleModel;
+    protected $studentPaymentRuleModel;
 
     public function __construct()
     {
         $this->studentModel = new StudentModel();
         $this->classModel   = new ClassModel();
         $this->userModel    = new UserModel();
+        $this->paymentCategoryClassRuleModel = new PaymentCategoryClassRuleModel();
+        $this->studentPaymentRuleModel       = new StudentPaymentRuleModel();
     }
 
-    // LIST STUDENTS
+    private function syncStudentPaymentRules($studentId, $classId, $userId)
+    {
+        $classRules = $this->paymentCategoryClassRuleModel
+            ->where('class_id', $classId)
+            ->findAll();
+
+        $now = date('Y-m-d H:i:s');
+
+        foreach ($classRules as $rule) {
+            $existing = $this->studentPaymentRuleModel
+                ->where('student_id', $studentId)
+                ->where('category_id', $rule['category_id'])
+                ->first();
+
+            if (!$existing) {
+                $this->studentPaymentRuleModel->insert([
+                    'student_id'   => $studentId,
+                    'category_id'  => $rule['category_id'],
+                    'amount'       => $rule['amount'],
+                    'is_mandatory' => 1,
+                    'is_paid'      => 0,
+                    'user_id'      => $userId,
+                    'created_at'   => $now,
+                    'updated_at'   => $now
+                ]);
+            }
+        }
+    }
+
     public function index()
     {
         $keyword     = $this->request->getGet('keyword');
@@ -78,46 +110,76 @@ class StudentController extends BaseController
         return view('students/index', $data);
     }
 
-    // FORM CREATE
     public function create()
     {
-        $data['classes'] = $this->classModel->orderBy('name', 'ASC')->findAll();
+        $role   = session()->get('user_role');
+        $userId = session()->get('user_id');
+
+        if ($role === 'admin') {
+            $data['classes'] = $this->classModel
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        } else {
+            $data['classes'] = $this->classModel
+                ->where('user_id', $userId)
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        }
+
+        // user list hanya admin
+        $data['users'] = [];
+        if ($role === 'admin') {
+            $data['users'] = $this->userModel->orderBy('name', 'ASC')->findAll();
+        }
+
         return view('students/create', $data);
     }
 
-    // SAVE NEW STUDENT
     public function store()
     {
         $validation = \Config\Services::validation();
 
         $rules = [
-            'name' => 'required',
-            'nis'  => 'permit_empty|is_unique[students.nis]',
-            'class' => 'permit_empty',
+            'name'        => 'required',
+            'nis'         => 'permit_empty|is_unique[students.nis]',
+            'class'       => 'permit_empty',
             'school_year' => 'permit_empty|integer|exact_length[4]',
             'status'      => 'permit_empty|in_list[0,1]',
+            'parent_name'  => 'required',
+            'phone'       => 'required',
         ];
 
         if (!$this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $validation->getErrors());
         }
 
-        $nis = $this->request->getVar('nis') ?: null;
-        $status = $this->request->getVar('status') ? 1 : 0;
+        $userId = session()->get('user_role') === 'admin'
+            ? ($this->request->getVar('user_id') ?: session()->get('user_id'))
+            : session()->get('user_id');
 
-        $this->studentModel->save([
+        $studentData = [
             'name'        => $this->request->getVar('name'),
-            'nis'         => $nis,
+            'nis'         => $this->request->getVar('nis') ?: null,
             'class'       => $this->request->getVar('class'),
-            'status'      => $status,
+            'status'      => $this->request->getVar('status') ? 1 : 0,
             'school_year' => $this->request->getVar('school_year') ?: null,
-            'user_id'     => session()->get('user_id'), // set user_id langsung
-        ]);
+            'user_id'     => $userId,
+            'address'     => $this->request->getVar('address') ?: null,
+            'parent_name' => $this->request->getVar('parent_name') ?: null,
+            'phone'       => $this->request->getVar('phone') ?: null
+        ];
+
+        // Simpan siswa
+        $newStudentId = $this->studentModel->insert($studentData);
+
+        // Sinkronisasi student_payment_rules otomatis
+        if ($newStudentId) {
+            $this->syncStudentPaymentRules($newStudentId, $studentData['class'], $userId);
+        }
 
         return redirect()->to('/students')->with('success', 'Data siswa berhasil ditambahkan');
     }
 
-    // FORM EDIT
     public function edit($id)
     {
         $student = $this->studentModel->find($id);
@@ -128,18 +190,31 @@ class StudentController extends BaseController
             return redirect()->to('/students')->with('error', 'Data siswa tidak ditemukan');
         }
 
-        // user biasa hanya bisa edit data miliknya
         if ($role !== 'admin' && $student['user_id'] != $userId) {
-            return redirect()->to('/students')->with('error', 'Tidak punya akses untuk mengedit data ini');
+            return redirect()->to('/students')->with('error', 'Tidak punya akses');
         }
 
         $data['student'] = $student;
-        $data['classes'] = $this->classModel->orderBy('name', 'ASC')->findAll();
+
+        if ($role === 'admin') {
+            $data['classes'] = $this->classModel
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        } else {
+            $data['classes'] = $this->classModel
+                ->where('user_id', $userId)
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        }
+
+        $data['users'] = [];
+        if ($role === 'admin') {
+            $data['users'] = $this->userModel->orderBy('name', 'ASC')->findAll();
+        }
 
         return view('students/edit', $data);
     }
 
-    // UPDATE DATA STUDENT
     public function update($id)
     {
         $student = $this->studentModel->find($id);
@@ -157,27 +232,41 @@ class StudentController extends BaseController
         $validation = \Config\Services::validation();
 
         $rules = [
-            'name' => 'required',
-            'nis'  => "permit_empty|is_unique[students.nis,id,{$id}]",
-            'class' => 'permit_empty',
+            'name'        => 'required',
+            'nis'         => "permit_empty|is_unique[students.nis,id,{$id}]",
+            'class'       => 'permit_empty',
             'school_year' => 'permit_empty|integer|exact_length[4]',
             'status'      => 'permit_empty|in_list[0,1]',
+            'parent_name'  => 'required',
+            'phone'       => 'required',
         ];
 
         if (!$this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $validation->getErrors());
         }
 
-        $nis = $this->request->getVar('nis') ?: null;
-        $status = $this->request->getVar('status') ? 1 : 0;
-
-        $this->studentModel->update($id, [
+        $updateData = [
             'name'        => $this->request->getVar('name'),
-            'nis'         => $nis,
+            'nis'         => $this->request->getVar('nis') ?: null,
             'class'       => $this->request->getVar('class'),
-            'status'      => $status,
+            'status'      => $this->request->getVar('status') ? 1 : 0,
             'school_year' => $this->request->getVar('school_year') ?: null,
-        ]);
+            'address'     => $this->request->getVar('address') ?: null,
+            'parent_name' => $this->request->getVar('parent_name') ?: null,
+            'phone'       => $this->request->getVar('phone') ?: null
+        ];
+
+        // Admin bisa update user_id
+        if ($role === 'admin') {
+            $updateData['user_id'] = $this->request->getVar('user_id');
+        }
+
+        $this->studentModel->update($id, $updateData);
+
+        // Jika class berubah, sinkronisasi payment rules
+        if (isset($updateData['class']) && $student['class'] != $updateData['class']) {
+            $this->syncStudentPaymentRules($id, $updateData['class'], $student['user_id']);
+        }
 
         return redirect()->to('/students')->with('success', 'Data siswa berhasil diupdate');
     }
@@ -204,8 +293,10 @@ class StudentController extends BaseController
     // FORM BULK EDIT
     public function bulkEdit()
     {
-        $role   = session()->get('user_role');
-        $userId = session()->get('user_id');
+        $role        = session()->get('user_role');
+        $userId      = session()->get('user_id');
+        $keyword     = $this->request->getGet('keyword');
+        $classFilter = $this->request->getGet('class');
 
         $builder = $this->studentModel
             ->select('students.*, classes.name as class_name')
@@ -217,75 +308,90 @@ class StudentController extends BaseController
                 ->where('students.status', 0);
         }
 
+        if ($keyword) {
+            $builder->groupStart()
+                ->like('students.name', $keyword)
+                ->orLike('students.nis', $keyword)
+                ->groupEnd();
+        }
+
+        if ($classFilter) {
+            $builder->where('students.class', $classFilter);
+        }
+
         $students = $builder->findAll();
         $classes  = $this->classModel->orderBy('name', 'ASC')->findAll();
 
+        $users = [];
+        if ($role === 'admin') {
+            $users = $this->userModel->orderBy('name', 'ASC')->findAll();
+        }
+
         return view('students/bulk_edit', [
-            'students' => $students,
-            'classes'  => $classes
+            'students'    => $students,
+            'classes'     => $classes,
+            'users'       => $users,
+            'keyword'     => $keyword,
+            'classFilter' => $classFilter
         ]);
     }
 
-    // PROSES BULK UPDATE
     public function bulkUpdate()
     {
-        $studentIds  = $this->request->getVar('student_id');
-        $classes     = $this->request->getVar('class');
-        $statuses    = $this->request->getVar('status');
-        $schoolYears = $this->request->getVar('school_year');
+        $studentIds  = $this->request->getVar('student_id') ?: [];
+        $classes     = $this->request->getVar('class') ?: [];
+        $statuses    = $this->request->getVar('status') ?: [];
+        $schoolYears = $this->request->getVar('school_year') ?: [];
+        $userIds     = $this->request->getVar('user_id') ?: [];
 
-        $role    = session()->get('user_role');
-        $userId  = session()->get('user_id');
+        $role   = session()->get('user_role');
+        $userId = session()->get('user_id');
+        $now    = date('Y-m-d H:i:s');
 
-        $studentPaymentRuleModel = new StudentPaymentRuleModel();
-        $paymentCategoryClassRuleModel = new PaymentCategoryClassRuleModel();
+        foreach ($studentIds as $id) {
+            $student = $this->studentModel->find($id);
+            if (!$student) continue;
+            if ($role !== 'admin' && $student['user_id'] != $userId) continue;
 
-        if ($studentIds && is_array($studentIds)) {
-            foreach ($studentIds as $id) {
-                $oldStudent = $this->studentModel->find($id);
-                if (!$oldStudent) continue;
+            $updateData = [];
+            if (isset($classes[$id]) && $classes[$id] !== '') $updateData['class'] = $classes[$id];
+            if (isset($statuses[$id])) $updateData['status'] = $statuses[$id];
+            if (isset($schoolYears[$id]) && $schoolYears[$id] !== '') $updateData['school_year'] = $schoolYears[$id];
+            if ($role === 'admin' && isset($userIds[$id]) && $userIds[$id] !== '') $updateData['user_id'] = $userIds[$id];
 
-                // user biasa hanya bisa update data miliknya
-                if ($role !== 'admin' && $oldStudent['user_id'] != $userId) continue;
+            if (!empty($updateData)) {
+                $this->studentModel->update($id, $updateData);
 
-                $data = [];
-                if (isset($classes[$id]) && $classes[$id] !== '') $data['class'] = $classes[$id];
-                if (isset($statuses[$id])) $data['status'] = $statuses[$id];
-                if (isset($schoolYears[$id]) && $schoolYears[$id] !== '') $data['school_year'] = $schoolYears[$id];
+                // Sinkronisasi payment rules jika class berubah
+                if (isset($updateData['class']) && $student['class'] != $updateData['class']) {
+                    $classRules = $this->paymentCategoryClassRuleModel
+                        ->where('class_id', $updateData['class'])
+                        ->findAll();
 
-                if (!empty($data)) {
-                    $this->studentModel->update($id, $data);
+                    foreach ($classRules as $rule) {
+                        $existingRule = $this->studentPaymentRuleModel
+                            ->where('student_id', $id)
+                            ->where('category_id', $rule['category_id'])
+                            ->first();
 
-                    // Sinkronisasi payment rules jika class berubah
-                    if (isset($data['class']) && $oldStudent['class'] != $data['class']) {
-                        $categoryRules = $paymentCategoryClassRuleModel
-                            ->where('class_id', $data['class'])
-                            ->findAll();
-
-                        foreach ($categoryRules as $rule) {
-                            $existingRule = $studentPaymentRuleModel
-                                ->where('student_id', $id)
-                                ->where('category_id', $rule['category_id'])
-                                ->first();
-
-                            if ($existingRule) {
-                                if (!isset($existingRule['is_paid']) || $existingRule['is_paid'] == 0) {
-                                    $studentPaymentRuleModel->update($existingRule['id'], [
-                                        'amount'     => $rule['amount'],
-                                        'updated_at' => date('Y-m-d H:i:s')
-                                    ]);
-                                }
-                            } else {
-                                $studentPaymentRuleModel->insert([
-                                    'student_id'  => $id,
-                                    'category_id' => $rule['category_id'],
-                                    'amount'      => $rule['amount'],
-                                    'is_mandatory' => 1,
-                                    'is_paid'     => 0,
-                                    'created_at'  => date('Y-m-d H:i:s'),
-                                    'updated_at'  => date('Y-m-d H:i:s')
+                        if ($existingRule) {
+                            if (!isset($existingRule['is_paid']) || $existingRule['is_paid'] == 0) {
+                                $this->studentPaymentRuleModel->update($existingRule['id'], [
+                                    'amount'     => $rule['amount'],
+                                    'updated_at' => $now
                                 ]);
                             }
+                        } else {
+                            $this->studentPaymentRuleModel->insert([
+                                'student_id'   => $id,
+                                'category_id'  => $rule['category_id'],
+                                'amount'       => $rule['amount'],
+                                'is_mandatory' => 1,
+                                'is_paid'      => 0,
+                                'user_id'      => $student['user_id'],
+                                'created_at'   => $now,
+                                'updated_at'   => $now
+                            ]);
                         }
                     }
                 }

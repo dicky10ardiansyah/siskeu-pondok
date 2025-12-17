@@ -12,12 +12,6 @@
                     <a href="<?= base_url('students/create') ?>" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Tambah Siswa
                     </a>
-                    <a href="<?= base_url('classes') ?>" class="btn btn-outline-primary">
-                        <i class="fas fa-list"></i> Kategori Kelas
-                    </a>
-                    <a href="<?= base_url('students/bulk-edit') ?>" class="btn btn-outline-warning">
-                        <i class="fas fa-edit"></i> Edit Sekaligus
-                    </a>
                 </div>
             </div>
 

@@ -66,6 +66,52 @@
                         <?php endif; ?>
                     </div>
 
+                    <div class="form-group">
+                        <label for="address">Alamat</label>
+                        <textarea
+                            name="address"
+                            id="address"
+                            class="form-control <?= isset(session('errors')['address']) ? 'is-invalid' : '' ?>"
+                            rows="4"><?= old('address', $student['address']) ?></textarea>
+
+                        <?php if (isset(session('errors')['address'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['address'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="parent_name">Nama Orang Tua/Wali</label>
+                        <input
+                            type="text"
+                            class="form-control <?= isset(session('errors')['parent_name']) ? 'is-invalid' : '' ?>"
+                            name="parent_name"
+                            id="parent_name"
+                            value="<?= old('parent_name', $student['parent_name']) ?>"
+                            placeholder="Nama orang tua...">
+                        <?php if (isset(session('errors')['parent_name'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['parent_name'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Nomor Hp</label>
+                        <input
+                            type="number"
+                            class="form-control <?= isset(session('errors')['phone']) ? 'is-invalid' : '' ?>"
+                            name="phone"
+                            id="phone"
+                            value="<?= old('phone', $student['phone']) ?>"
+                            placeholder="Nomor Hp...">
+                        <?php if (isset(session('errors')['phone'])) : ?>
+                            <div class="invalid-feedback">
+                                <?= session('errors')['phone'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                     <!-- Status Lulus -->
                     <div class="form-group form-check mt-3">
                         <input
@@ -95,6 +141,28 @@
                         <?php endif; ?>
                         <small class="form-text text-muted">Isi hanya jika siswa sudah lulus.</small>
                     </div>
+
+                    <?php if (!empty($users)) : ?>
+                        <div class="form-group mt-3">
+                            <label for="user_id">User</label>
+                            <select
+                                name="user_id"
+                                id="user_id"
+                                class="form-control <?= isset(session('errors')['user_id']) ? 'is-invalid' : '' ?>">
+                                <option value="">-- Pilih User --</option>
+                                <?php foreach ($users as $user) : ?>
+                                    <option value="<?= $user['id'] ?>" <?= old('user_id', isset($student['user_id']) ? $student['user_id'] : '') == $user['id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset(session('errors')['user_id'])) : ?>
+                                <div class="invalid-feedback">
+                                    <?= session('errors')['user_id'] ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-warning">

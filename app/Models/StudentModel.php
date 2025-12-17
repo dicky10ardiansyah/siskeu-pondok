@@ -15,7 +15,10 @@ class StudentModel extends Model
         'status',
         'school_year',
         'overpaid',
-        'user_id'
+        'user_id',
+        'address',
+        'parent_name',
+        'phone'
     ];
 
     protected $useTimestamps = true;

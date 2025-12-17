@@ -30,6 +30,20 @@ class Students extends Migration
                 'constraint' => '255',
                 'null'       => true,
             ],
+            'address' => [
+                'type'       => 'TEXT',
+                'null'       => true,
+            ],
+            'parent_name' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '255',
+                'null'       => true,
+            ],
+            'phone' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '255',
+                'null'       => true,
+            ],
             'status' => [   // kolom baru untuk menandai siswa lulus atau belum
                 'type'       => 'BOOLEAN',
                 'default'    => false,

@@ -17,6 +17,8 @@ $routes->post('/save_register', 'AuthController::save_register');
 $routes->get('/profile', 'AuthController::profile', ['filter' => 'auth:user,admin,superadmin']);
 $routes->get('/logout', 'AuthController::logout');
 $routes->get('/unauthorized', 'AuthController::unauthorized');
+// Billing untuk orang tua -----------------------------------------------------------------------------
+$routes->get('/billing/pdf-secure/(:any)', 'BillsController::pdfSecure/$1');
 // Dashboard --------------------------------------------------------------------------
 $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes) {
     // CRUD 
@@ -81,8 +83,8 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->get('/billing', 'BillsController::index');
     $routes->post('/billing/generate', 'BillsController::generateBills');
     $routes->get('/billing/detail/(:num)', 'BillsController::detail/$1');
-    $routes->get('/billing/pdf/(:num)', 'BillsController::pdf/$1');
     $routes->post('billing/deleteDetail/(:num)', 'BillsController::deleteDetail/$1');
+    $routes->get('/billing/pdf/(:num)', 'BillsController::pdf/$1');
 
     $routes->get('payments', 'PaymentsController::index');
     $routes->get('payments/create', 'PaymentsController::create');

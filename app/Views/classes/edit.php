@@ -32,6 +32,20 @@
                         <?php endif; ?>
                     </div>
 
+                    <?php if (session()->get('user_role') === 'admin') : ?>
+                        <div class="form-group mt-3">
+                            <label for="user_id">Pemilik Kelas</label>
+                            <select name="user_id" id="user_id" class="form-control">
+                                <?php foreach ($users as $user) : ?>
+                                    <option value="<?= $user['id'] ?>"
+                                        <?= $user['id'] == $class['user_id'] ? 'selected' : '' ?>>
+                                        <?= esc($user['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
                     <!-- Tombol -->
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">

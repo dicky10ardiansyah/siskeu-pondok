@@ -9,20 +9,81 @@ class StudentSeeder extends Seeder
 {
     public function run()
     {
-        $faker = Factory::create('id_ID');
+        // Ambil class dari database (sumber kebenaran)
+        $classes = $this->db->table('classes')->get()->getResultArray();
+
+        if (empty($classes)) {
+            throw new \RuntimeException('Table classes masih kosong!');
+        }
+
+        $names = [
+            'Ahmad Fauzi',
+            'Andi Saputra',
+            'Budi Santoso',
+            'Dedi Pratama',
+            'Eko Prasetyo',
+            'Fajar Nugroho',
+            'Hadi Setiawan',
+            'Irfan Maulana',
+            'Joko Susilo',
+            'Rizki Ramadhan',
+            'Agus Salim',
+            'Bayu Wicaksono',
+            'Dimas Arya',
+            'Farhan Hidayat',
+            'Gilang Saputro',
+            'Ilham Akbar',
+            'Kurniawan Putra',
+            'Muhammad Rizal',
+            'Nanda Prakoso',
+            'Rafi Kurnia',
+            'Satria Adi',
+            'Yoga Pratama',
+            'Zaki Alfarizi',
+
+            'Aisyah Putri',
+            'Anisa Rahma',
+            'Dewi Anggraini',
+            'Fitri Handayani',
+            'Intan Permata',
+            'Kartika Sari',
+            'Lestari Ayu',
+            'Nabila Zahra',
+            'Putri Maharani',
+            'Rina Oktaviani',
+            'Siti Aminah',
+            'Tiara Safira',
+            'Ulfah Khairunnisa',
+            'Wulan Pertiwi',
+            'Yuni Astuti',
+
+            'Bagas Firmansyah',
+            'Rizal Fikri',
+            'Hafiz Ramadhan',
+            'Alif Nugraha',
+            'Reno Maulana',
+            'Vina Oktavia',
+            'Diah Puspitasari',
+            'Melati Kusuma',
+            'Novi Lestari'
+        ];
 
         $data = [];
-        for ($i = 1; $i <= 50; $i++) {
+        $nis  = 8001;
 
-            // 70% siswa punya nis, 30% kosong
-            $nis = (rand(1, 100) <= 70) ? $faker->unique()->numerify('2025####') : null;
+        for ($i = 0; $i < 50; $i++) {
+            $class = $classes[$i % count($classes)];
 
             $data[] = [
-                'name'       => $faker->name(),
-                'nis'        => $nis,
-                'class'      => 'Kelas ' . rand(1, 12),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'name' => $names[$i % count($names)],
+                'nis'         => (string) $nis++,
+                'class'       => $class['id'], // SINKRON
+                'status'      => null,
+                'school_year' => null,
+                'overpaid'    => null,
+                'user_id'     => $class['user_id'],
+                'created_at'  => date('Y-m-d H:i:s'),
+                'updated_at'  => date('Y-m-d H:i:s'),
             ];
         }
 

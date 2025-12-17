@@ -30,7 +30,21 @@
                         </select>
                     <?php endif ?>
 
-                    <button type="submit" class="btn btn-outline-primary">Cari</button>
+                    <!-- Filter Tipe Akun -->
+                    <select name="type" class="form-control mr-2">
+                        <option value="">-- Semua Tipe --</option>
+                        <?php
+                        $types = ['asset' => 'Asset', 'liability' => 'Liability', 'equity' => 'Equity', 'income' => 'Income', 'expense' => 'Expense'];
+                        foreach ($types as $key => $label) :
+                        ?>
+                            <option value="<?= $key ?>" <?= isset($filterType) && $filterType == $key ? 'selected' : '' ?>>
+                                <?= $label ?>
+                            </option>
+                        <?php endforeach ?>
+                    </select>
+
+                    <button type="submit" class="btn btn-outline-primary mr-2">Cari</button>
+                    <a href="<?= base_url('accounts') ?>" class="btn btn-secondary">Reset</a>
                 </form>
 
                 <div class="table-responsive">

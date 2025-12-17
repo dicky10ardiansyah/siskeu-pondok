@@ -13,6 +13,18 @@
                     $currentMonth = date('n'); // 1-12
                     $currentYear = date('Y');
                     ?>
+
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $user): ?>
+                                <option value="<?= $user['id'] ?>">
+                                    <?= esc($user['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+
                     <select name="month" class="form-control mr-2" required>
                         <option value="">Pilih Bulan</option>
                         <?php for ($m = 1; $m <= 12; $m++): ?>
@@ -52,6 +64,15 @@
                         </select>
                     <?php endif; ?>
 
+                    <select name="filter_class" class="form-control mr-2">
+                        <option value="">Semua Kelas</option>
+                        <?php foreach ($classes as $c): ?>
+                            <option value="<?= $c['id'] ?>" <?= (isset($filter_class) && $filter_class == $c['id']) ? 'selected' : '' ?>>
+                                <?= esc($c['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+
                     <select name="filter_status" class="form-control mr-2">
                         <option value="">Semua Status</option>
                         <option value="Lunas" <?= (isset($filter_status) && $filter_status == 'Lunas') ? 'selected' : '' ?>>Lunas</option>
@@ -68,6 +89,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Nama Siswa</th>
+                                <th>Kelas</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
@@ -78,6 +100,7 @@
                                     <tr>
                                         <td><?= $no + 1 + ($pager->getCurrentPage('bills') - 1) * 10 ?></td>
                                         <td><?= esc($bill['student']) ?></td>
+                                        <td><?= esc($bill['kelas']) ?></td>
                                         <td>
                                             <span class="badge <?= $bill['status_tagihan'] == 'Lunas' ? 'bg-success' : 'bg-danger' ?>">
                                                 <?= $bill['status_tagihan'] ?>
@@ -92,7 +115,7 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="4" class="text-center">
+                                    <td colspan="5" class="text-center">
                                         Tidak ada tunggakan
                                     </td>
                                 </tr>
