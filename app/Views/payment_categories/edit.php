@@ -79,6 +79,21 @@
                         <?php endif; ?>
                     </div>
 
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <div class="form-group">
+                            <label>User</label>
+                            <select name="user_id" class="form-control" required>
+                                <option value="">-- Pilih User --</option>
+                                <?php foreach ($users as $u): ?>
+                                    <option value="<?= $u['id'] ?>"
+                                        <?= old('user_id', $category['user_id']) == $u['id'] ? 'selected' : '' ?>>
+                                        <?= esc($u['name']) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Update

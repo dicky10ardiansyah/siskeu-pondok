@@ -91,8 +91,9 @@
 
                 <!-- Sidebar Menu -->
                 <?php
-                $seg1 = service('uri')->getSegment(1);
-                $seg2 = service('uri')->getSegment(2);
+                $uri = service('uri');
+                $seg1 = $uri->getTotalSegments() >= 1 ? $uri->getSegment(1) : null;
+                $seg2 = $uri->getTotalSegments() >= 2 ? $uri->getSegment(2) : null;
 
                 $isDataUtamaOpen = in_array($seg1, ['accounts', 'students', 'graduates', 'classes']) || ($seg1 === 'students' && $seg2 === 'bulk-edit');
                 ?>
@@ -206,9 +207,9 @@
                             <!-- ================= KEUANGAN ================= -->
                             <li class="nav-header">KEUANGAN</li>
 
-                            <li class="nav-item has-treeview <?= in_array($seg1, ['billing', 'payments', 'payment-categories']) ? 'menu-open' : '' ?>">
+                            <li class="nav-item has-treeview <?= in_array($seg1, ['billing', 'payments', 'parent-payments', 'payment-categories']) ? 'menu-open' : '' ?>">
                                 <a href="#"
-                                    class="nav-link <?= in_array($seg1, ['billing', 'payments', 'payment-categories']) ? 'active' : '' ?>">
+                                    class="nav-link <?= in_array($seg1, ['billing', 'payments', 'parent-payments', 'payment-categories']) ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-wallet"></i>
                                     <p>
                                         Keuangan
@@ -230,6 +231,13 @@
                                             class="nav-link <?= $seg1 === 'payments' ? 'active' : '' ?>">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Pembayaran</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('parent-payments') ?>"
+                                            class="nav-link <?= $seg1 === 'parent-payments' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Pembayaran Orang Tua</p>
                                         </a>
                                     </li>
                                     <li class="nav-item">

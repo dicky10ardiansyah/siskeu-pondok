@@ -12,21 +12,25 @@
                 <!-- Search & Filter -->
                 <form method="get" class="form-inline mb-3">
                     <!-- Filter User (opsional) -->
-                    <select name="user_id" class="form-control mr-2">
-                        <option value="">-- Semua User --</option>
-                        <?php foreach ($users as $u): ?>
-                            <option value="<?= esc($u['id']) ?>" <?= ($filterUser ?? '') == $u['id'] ? 'selected' : '' ?>>
-                                <?= esc($u['name']) ?>
-                            </option>
-                        <?php endforeach ?>
-                    </select>
+                    <?php if (session()->get('user_role') === 'admin'): ?>
+                        <select name="user_id" class="form-control mr-2">
+                            <option value="">-- Semua User --</option>
+                            <?php foreach ($users as $u): ?>
+                                <option value="<?= esc($u['id']) ?>" <?= ($filterUser ?? '') == $u['id'] ? 'selected' : '' ?>>
+                                    <?= esc($u['name']) ?>
+                                </option>
+                            <?php endforeach ?>
+                        </select>
+                    <?php endif; ?>
 
                     <input type="text" name="q" class="form-control mr-2" placeholder="Cari nama/NIS..." value="<?= esc($search ?? '') ?>">
 
                     <select name="class" class="form-control mr-2">
                         <option value="">-- Pilih Kelas --</option>
                         <?php foreach ($classes as $c): ?>
-                            <option value="<?= esc($c['class']) ?>" <?= ($filterClass ?? '') == $c['class'] ? 'selected' : '' ?>><?= esc($c['class']) ?></option>
+                            <option value="<?= esc($c['id']) ?>" <?= ($filterClass ?? '') == $c['id'] ? 'selected' : '' ?>>
+                                <?= esc($c['name']) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
 

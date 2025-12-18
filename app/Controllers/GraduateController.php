@@ -57,14 +57,6 @@ class GraduateController extends BaseController
             $graduateModel = $graduateModel->where('user_id', $filterUser);
         }
 
-        // Search
-        if ($search) {
-            $graduateModel = $graduateModel->groupStart()
-                ->like('name', $search)
-                ->orLike('nis', $search)
-                ->groupEnd();
-        }
-
         // Filter kelas (ID)
         if ($filterClass) {
             $graduateModel = $graduateModel->where('class', $filterClass);
@@ -73,6 +65,14 @@ class GraduateController extends BaseController
         // Filter tahun
         if ($filterYear) {
             $graduateModel = $graduateModel->where('school_year', $filterYear);
+        }
+
+        // Search
+        if ($search) {
+            $graduateModel = $graduateModel->groupStart()
+                ->like('name', $search)
+                ->orLike('nis', $search)
+                ->groupEnd();
         }
 
         // Pagination
@@ -117,16 +117,20 @@ class GraduateController extends BaseController
         }
 
         // Dropdown classes & years
-        $classes = $this->studentModel
-            ->select('class')
-            ->where('status', true)
-            ->groupBy('class')
-            ->orderBy('class')
-            ->findAll();
+        $classesQuery = $this->studentModel->select('class')->where('status', true);
+        if (!$isAdmin) {
+            $classesQuery = $classesQuery->where('user_id', $userId);
+        }
+        $classIds = $classesQuery->groupBy('class')->orderBy('class')->findAll();
 
-        $classes = array_map(function ($c) {
-            return ['class' => $c['class']];
-        }, $classes);
+        // Ambil nama kelas
+        $classes = [];
+        foreach ($classIds as $c) {
+            $classRow = $this->classModel->find($c['class']);
+            if ($classRow) {
+                $classes[] = ['id' => $c['class'], 'name' => $classRow['name']];
+            }
+        }
 
         $years = $this->studentModel
             ->select('school_year')

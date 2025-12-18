@@ -226,7 +226,7 @@ class BillsController extends BaseController
         }
 
         if (!$generated) {
-            return redirect()->back()->with('error', 'Tidak ada tagihan baru yang bisa digenerate.');
+            return redirect()->back()->with('error', 'Tidak ada tagihan baru yang bisa digenerate atau sudah ada tagihan.');
         }
 
         return redirect()->to('/billing')->with('success', 'Billing berhasil digenerate!');

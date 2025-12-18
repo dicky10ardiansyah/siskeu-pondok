@@ -61,16 +61,19 @@ class StudentController extends BaseController
         $keyword     = $this->request->getGet('keyword');
         $classFilter = $this->request->getGet('class');
         $userFilter  = $this->request->getGet('user_id');
-        $role        = session()->get('user_role');
-        $userId      = session()->get('user_id');
-        $perPage     = 10;
 
+        $role    = session()->get('user_role');
+        $isAdmin = $role === 'admin';
+        $userId  = session()->get('user_id');
+        $perPage = 10;
+
+        // Query siswa
         $builder = $this->studentModel
             ->select('students.*, classes.name as class_name')
             ->join('classes', 'classes.id = students.class', 'left')
             ->orderBy('students.id', 'DESC');
 
-        if ($role === 'admin') {
+        if ($isAdmin) {
             // Admin bisa filter user
             if ($userFilter) {
                 $builder->where('students.user_id', $userFilter);
@@ -86,7 +89,7 @@ class StudentController extends BaseController
             $builder->where('students.class', $classFilter);
         }
 
-        // Filter keyword
+        // Filter keyword (nama / NIS)
         if ($keyword) {
             $builder->groupStart()
                 ->like('students.name', $keyword)
@@ -94,18 +97,26 @@ class StudentController extends BaseController
                 ->groupEnd();
         }
 
-        $data['students']       = $builder->paginate($perPage, 'students');
-        $data['pager']          = $this->studentModel->pager;
-        $data['keyword']        = $keyword;
-        $data['class']          = $classFilter;
-        $data['selected_user']  = $userFilter;
-        $data['classes']        = $this->classModel->orderBy('name', 'ASC')->findAll();
-
-        // Daftar user hanya untuk admin
-        $data['users'] = [];
-        if ($role === 'admin') {
-            $data['users'] = $this->userModel->orderBy('name', 'ASC')->findAll();
+        // Ambil daftar kelas untuk dropdown
+        if ($isAdmin) {
+            $classes = $this->classModel->orderBy('name', 'ASC')->findAll();
+        } else {
+            $classes = $this->classModel
+                ->where('user_id', $userId)
+                ->orderBy('name', 'ASC')
+                ->findAll();
         }
+
+        $data = [
+            'students'      => $builder->paginate($perPage, 'students'),
+            'pager'         => $this->studentModel->pager,
+            'keyword'       => $keyword,
+            'class'         => $classFilter,
+            'selected_user' => $userFilter,
+            'classes'       => $classes,
+            'users'         => $isAdmin ? $this->userModel->orderBy('name', 'ASC')->findAll() : [],
+            'isAdmin'       => $isAdmin
+        ];
 
         return view('students/index', $data);
     }
@@ -290,7 +301,6 @@ class StudentController extends BaseController
         return redirect()->to('/students')->with('success', 'Data berhasil dihapus');
     }
 
-    // FORM BULK EDIT
     public function bulkEdit()
     {
         $role        = session()->get('user_role');
@@ -298,14 +308,26 @@ class StudentController extends BaseController
         $keyword     = $this->request->getGet('keyword');
         $classFilter = $this->request->getGet('class');
 
+        // Query siswa
         $builder = $this->studentModel
             ->select('students.*, classes.name as class_name')
             ->join('classes', 'classes.id = students.class', 'left')
             ->orderBy('students.name', 'ASC');
 
         if ($role !== 'admin') {
+            // User biasa hanya lihat miliknya sendiri & status belum lulus
             $builder->where('students.user_id', $userId)
                 ->where('students.status', 0);
+
+            // Filter kelas hanya jika termasuk kelas miliknya
+            if ($classFilter) {
+                $builder->where('students.class', $classFilter);
+            }
+        } else {
+            // Admin bisa filter semua siswa
+            if ($classFilter) {
+                $builder->where('students.class', $classFilter);
+            }
         }
 
         if ($keyword) {
@@ -315,16 +337,18 @@ class StudentController extends BaseController
                 ->groupEnd();
         }
 
-        if ($classFilter) {
-            $builder->where('students.class', $classFilter);
-        }
-
         $students = $builder->findAll();
-        $classes  = $this->classModel->orderBy('name', 'ASC')->findAll();
 
-        $users = [];
+        // Daftar kelas sesuai hak akses
         if ($role === 'admin') {
-            $users = $this->userModel->orderBy('name', 'ASC')->findAll();
+            $classes = $this->classModel->orderBy('name', 'ASC')->findAll();
+            $users   = $this->userModel->orderBy('name', 'ASC')->findAll();
+        } else {
+            $classes = $this->classModel
+                ->where('user_id', $userId)
+                ->orderBy('name', 'ASC')
+                ->findAll();
+            $users = [];
         }
 
         return view('students/bulk_edit', [

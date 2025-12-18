@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\BillModel;
 use App\Models\UserModel;
 use App\Models\AccountModel;
+use App\Models\PaymentModel;
 use App\Models\StudentModel;
 use App\Models\TransactionModel;
 use App\Models\JournalEntryModel;
@@ -15,131 +16,119 @@ class Home extends BaseController
     protected $accountModel;
     protected $billModel;
     protected $userModel;
+    protected $paymentModel;
 
     public function __construct()
     {
         $this->accountModel = new AccountModel();
         $this->billModel = new BillModel();
         $this->userModel = new UserModel();
+        $this->paymentModel = new PaymentModel();
     }
 
     public function index()
     {
         $session = session();
-        $userId    = $session->get('user_id');
-        $userRole  = $session->get('user_role');
-        $request   = service('request');
-        $startDate = $request->getGet('start_date');
-        $endDate   = $request->getGet('end_date');
-        $selectedUserId = $request->getGet('user_id'); // user yang dipilih admin
+        $userRole = $session->get('user_role');
+        $userId   = $session->get('user_id');
 
-        // --- Ambil daftar user jika admin (untuk select option) ---
-        $allUsers = [];
-        if ($userRole === 'admin') {
-            $allUsers = $this->userModel->select('id, name')->findAll();
-        }
+        $db = \Config\Database::connect();
 
-        // --- Ambil akun ---
-        if ($userRole === 'admin') {
-            if ($selectedUserId) {
-                $accounts = $this->accountModel->where('user_id', $selectedUserId)->findAll();
-            } else {
-                $accounts = $this->accountModel->findAll(); // semua akun
-            }
-        } else {
-            $accounts = $this->accountModel->where('user_id', $userId)->findAll();
-        }
+        // =========================
+        // Hitung Total Saldo Akun
+        // =========================
+        $accountTypes = ['asset', 'liability', 'equity', 'income', 'expense'];
+        $totals = [];
 
-        // --- Inisialisasi totals ---
-        $totals = [
-            'asset'      => 0,
-            'liability'  => 0,
-            'equity'     => 0,
-            'income'     => 0,
-            'expense'    => 0,
-        ];
+        foreach ($accountTypes as $type) {
+            $builder = $db->table('accounts a')
+                ->select("SUM(CASE 
+                    WHEN a.type IN ('asset','expense') THEN IFNULL(j.debit,0) - IFNULL(j.credit,0)
+                    ELSE IFNULL(j.credit,0) - IFNULL(j.debit,0)
+                  END) AS total")
+                ->join('journal_entries j', 'j.account_id = a.id', 'left')
+                ->where('a.type', $type);
 
-        // --- Hitung saldo per akun ---
-        foreach ($accounts as $account) {
-            $builder = $this->accountModel->db->table('journal_entries')
-                ->selectSum('journal_entries.debit', 'total_debit')
-                ->selectSum('journal_entries.credit', 'total_credit')
-                ->join('journals', 'journals.id = journal_entries.journal_id', 'left')
-                ->where('journal_entries.account_id', $account['id']);
-
-            if ($startDate) $builder->where('journals.date >=', $startDate);
-            if ($endDate) $builder->where('journals.date <=', $endDate);
-
-            $result = $builder->get()->getRowArray();
-
-            $totalDebit  = (float)($result['total_debit'] ?? 0);
-            $totalCredit = (float)($result['total_credit'] ?? 0);
-
-            $saldo = 0;
-            switch ($account['type']) {
-                case 'asset':
-                case 'expense':
-                    $saldo = $totalDebit - $totalCredit;
-                    break;
-                case 'income':
-                case 'liability':
-                case 'equity':
-                    $saldo = $totalCredit - $totalDebit;
-                    break;
+            if ($userRole !== 'admin') {
+                $builder->where('a.user_id', $userId);
             }
 
-            $totals[$account['type']] += $saldo;
+            $totals[$type] = (float) ($builder->get()->getRow()->total ?? 0);
         }
 
-        // --- Hitung laba/rugi bersih ---
-        $netProfit = $totals['income'] - $totals['expense'];
-        $totals['equity'] += $netProfit;
+        // =========================
+        // Hitung Tagihan & Pembayaran (informasi saja)
+        // =========================
+        $billBuilder = $db->table('bills');
+        if ($userRole !== 'admin') $billBuilder->where('user_id', $userId);
+        $allBills = $billBuilder->get()->getResultArray();
 
-        // --- Ambil tagihan ---
-        $billBuilder = $this->billModel->db->table('bills');
-        if ($userRole === 'admin') {
-            if ($selectedUserId) {
-                $billBuilder->where('student_id', $selectedUserId);
-            }
-        } else {
-            $billBuilder->where('student_id', $userId);
-        }
+        $paymentBuilder = $db->table('payments');
+        if ($userRole !== 'admin') $paymentBuilder->where('user_id', $userId);
+        $allPayments = $paymentBuilder->get()->getResultArray();
 
-        if ($startDate) $billBuilder->where('DATE(CONCAT(year,"-",LPAD(month,2,"0"),"-01")) >=', $startDate);
-        if ($endDate) $billBuilder->where('DATE(CONCAT(year,"-",LPAD(month,2,"0"),"-01")) <=', $endDate);
-
-        $bills = $billBuilder->get()->getResultArray();
-
-        $totalTagihan = 0;
-        $totalDibayar = 0;
-        $tunggakan = 0;
+        $total_tagihan = 0;
+        $total_dibayar = 0;
         $siswaMenunggak = [];
 
-        foreach ($bills as $bill) {
-            $totalTagihan += (float)$bill['amount'];
-            $totalDibayar += (float)$bill['paid_amount'];
-            $sisa = (float)$bill['amount'] - (float)$bill['paid_amount'];
-            if ($sisa > 0) {
-                $tunggakan += $sisa;
-                $siswaMenunggak[$bill['student_id']] = true;
-            }
+        $siswaTagihan = [];
+        foreach ($allBills as $bill) {
+            $siswaTagihan[$bill['student_id']]['total_tagihan'] = ($siswaTagihan[$bill['student_id']]['total_tagihan'] ?? 0) + $bill['amount'];
+        }
+        foreach ($allPayments as $pay) {
+            $siswaTagihan[$pay['student_id']]['total_dibayar'] = ($siswaTagihan[$pay['student_id']]['total_dibayar'] ?? 0) + $pay['total_amount'];
         }
 
-        $jumlahSiswaMenunggak = count($siswaMenunggak);
+        foreach ($siswaTagihan as $studentId => $vals) {
+            $tagihan = $vals['total_tagihan'] ?? 0;
+            $dibayar = $vals['total_dibayar'] ?? 0;
+            $total_tagihan += $tagihan;
+            $total_dibayar += $dibayar;
 
-        return view('home/index', [
+            if ($dibayar < $tagihan) $siswaMenunggak[] = $studentId;
+        }
+
+        // =========================
+        // Hitung Total Tunggakan Akurat (sama dengan FSController)
+        // =========================
+        $billModel = new \App\Models\BillModel();
+        $billBuilder = $billModel
+            ->selectSum('(amount - paid_amount)', 'total_tunggakan')
+            ->where('status !=', 'paid');
+
+        if ($userRole !== 'admin') {
+            $billBuilder->where('user_id', $userId);
+        }
+
+        $row = $billBuilder->get()->getRowArray();
+        $total_tunggakan = (float) ($row['total_tunggakan'] ?? 0);
+
+        // =========================
+        // Ambil semua user (admin)
+        // =========================
+        $allUsers = [];
+        if ($userRole === 'admin') {
+            $allUsers = $db->table('users')->select('id, name')->get()->getResultArray();
+        }
+
+        // =========================
+        // Kirim data ke view
+        // =========================
+        $data = [
             'title' => 'Home',
             'totals' => $totals,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'total_tagihan' => $totalTagihan,
-            'total_dibayar' => $totalDibayar,
-            'total_tunggakan' => $tunggakan,
-            'jumlah_siswa_menunggak' => $jumlahSiswaMenunggak,
+            'total_tagihan' => $total_tagihan,
+            'total_dibayar' => $total_dibayar,
+            'total_tunggakan' => $total_tunggakan,   // sudah akurat
+            'jumlah_siswa_menunggak' => count($siswaMenunggak),
             'allUsers' => $allUsers,
-            'selected_user_id' => $selectedUserId,
-            'user_role' => $userRole
-        ]);
+            'user_role' => $userRole,
+            'selected_user_id' => $this->request->getGet('user_id') ?? '',
+            'start_date' => $this->request->getGet('start_date'),
+            'end_date' => $this->request->getGet('end_date'),
+        ];
+
+        return view('home/index', $data);
     }
 
     public function develop()

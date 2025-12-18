@@ -19,6 +19,8 @@ $routes->get('/logout', 'AuthController::logout');
 $routes->get('/unauthorized', 'AuthController::unauthorized');
 // Billing untuk orang tua -----------------------------------------------------------------------------
 $routes->get('/billing/pdf-secure/(:any)', 'BillsController::pdfSecure/$1');
+$routes->get('parent-payments/parent', 'ParentPaymentController::parent');
+$routes->post('parent-payments/parent-store', 'ParentPaymentController::parentStore');
 // Dashboard --------------------------------------------------------------------------
 $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes) {
     // CRUD 
@@ -106,6 +108,13 @@ $routes->group('', ['filter' => 'auth:admin,user,superadmin'], function ($routes
     $routes->post('payment-categories/class-rules/(:num)', 'PaymentCategoriesController::updateClassRules/$1');
 
     $routes->get('graduates', 'GraduateController::index');
+
+    $routes->get('parent-payments', 'ParentPaymentController::index');
+    $routes->get('parent-payments/create', 'ParentPaymentController::create');
+    $routes->post('parent-payments/store', 'ParentPaymentController::store');
+    $routes->get('parent-payments/edit/(:num)', 'ParentPaymentController::edit/$1');
+    $routes->post('parent-payments/update/(:num)', 'ParentPaymentController::update/$1');
+    $routes->get('parent-payments/delete/(:num)', 'ParentPaymentController::delete/$1');
 });
 
 $routes->group('', ['filter' => 'auth:admin,superadmin'], function ($routes) {

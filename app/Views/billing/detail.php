@@ -54,13 +54,13 @@ function whatsappBillingLink($student, $totalBills, $amountDueNow, $pdfSecureUrl
         "$pdfSecureUrl\n\n" .
         "Berikut ini informasi dan ketentuan pembayaran:\n" .
         "1. Transfer melalui Bank Syariah Indonesia (BSI)\n" .
-        "No. Rek: 73-888-888-78\n" .
+        "No. Rek: 73-XX-XXX-XX\n" .
         "a.n. Yayasan Ibu Bahagia Batam\n" .
         "2. Bukti transfer dikirim melalui link berikut:\n" .
-        "https://bit.ly/SPPMEI2025\n\n" .
+        "http://localhost:8080/parent-payments/parent\n\n" .
         "Jika ada kendala, silakan hubungi:\n" .
-        "• Bunda Rani: 0812-6158-5057\n" .
-        "• Admin Sekolah: 0813-6517-3324\n\n" .
+        "• Mbak Siti: 0812-XXXX-XXXX\n" .
+        "• Admin Sekolah: 0813-XXXX-XXXX\n\n" .
         "Atas perhatian dan kerja samanya kami syukuri\n" .
         "Alhamdulillah jazakumullohu khoiro\n" .
         "Waalaikumussalam wr wb";

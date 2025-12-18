@@ -26,7 +26,7 @@
                         value="<?= esc($keyword ?? '') ?>">
 
                     <!-- Filter User (Admin Only) -->
-                    <?php if (!empty($users)) : ?>
+                    <?php if ($isAdmin) : ?>
                         <select name="user_id" class="form-control mr-2">
                             <option value="">Semua User</option>
                             <?php foreach ($users as $u): ?>
