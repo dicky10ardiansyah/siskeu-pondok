@@ -27,6 +27,39 @@ class StudentPaymentRuleController extends BaseController
         $this->userModel      = new UserModel();
     }
 
+    private function syncStudentPaymentRules($studentId, $classId, $userId)
+    {
+        $classRules = $this->classRuleModel
+            ->where('class_id', $classId)
+            ->findAll();
+
+        $now = date('Y-m-d H:i:s');
+
+        foreach ($classRules as $rule) {
+            $existing = $this->ruleModel
+                ->where('student_id', $studentId)
+                ->where('category_id', $rule['category_id'])
+                ->first();
+
+            $data = [
+                'student_id'   => $studentId,
+                'category_id'  => $rule['category_id'],
+                'amount'       => $rule['amount'],
+                'is_mandatory' => $rule['is_mandatory'],
+                'is_paid'      => 0,
+                'user_id'      => $userId,
+                'updated_at'   => $now
+            ];
+
+            if ($existing) {
+                $this->ruleModel->update($existing['id'], $data);
+            } else {
+                $data['created_at'] = $now;
+                $this->ruleModel->insert($data);
+            }
+        }
+    }
+
     public function editByStudent($student_id)
     {
         $student = $this->studentModel->find($student_id);
@@ -34,42 +67,39 @@ class StudentPaymentRuleController extends BaseController
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Siswa tidak ditemukan');
         }
 
-        // rules siswa
+        $session    = session();
+        $role       = $session->get('user_role');
+        $loginUser  = $session->get('user_id');
+
+        $selectedUserId = $role === 'admin'
+            ? ($this->request->getGet('user_id') ?? $student['user_id'])
+            : $loginUser;
+
+        // Sinkronisasi otomatis sebelum menampilkan
+        $this->syncStudentPaymentRules($student['id'], $student['class'], $selectedUserId);
+
+        // Ambil semua student rules
         $rules = $this->ruleModel
             ->select('student_payment_rules.*, payment_categories.name as category_name')
             ->join('payment_categories', 'payment_categories.id = student_payment_rules.category_id')
             ->where('student_payment_rules.student_id', $student_id)
             ->findAll();
 
-        $session = session();
-        $role    = $session->get('user_role');
-        $loginUserId = $session->get('user_id');
-
-        // =============================
-        // ADMIN boleh pilih user_id
-        // =============================
-        $users = [];
-        if ($role === 'admin') {
-            $users = $this->userModel->findAll();
-            $selectedUserId = $this->request->getGet('user_id') ?? $student['user_id'];
-        } else {
-            $selectedUserId = $loginUserId;
-        }
-
-        // kategori mengikuti user terpilih
+        // Ambil kategori sesuai user
         $categoryQuery = $this->categoryModel;
         if ($role !== 'admin') {
-            $categoryQuery->where('user_id', $loginUserId);
+            $categoryQuery->where('user_id', $loginUser);
         } else {
             $categoryQuery->where('user_id', $selectedUserId);
         }
-
         $categories = $categoryQuery->findAll();
 
-        // class rule
+        // Ambil class rules untuk referensi
         $classRules = $this->classRuleModel
             ->where('class_id', $student['class'])
             ->findAll();
+
+        $users = $role === 'admin' ? $this->userModel->orderBy('name', 'ASC')->findAll() : [];
 
         return view('student_rules/edit_multiple', [
             'student'        => $student,

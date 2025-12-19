@@ -176,7 +176,7 @@ function whatsappBillingLink($student, $totalBills, $amountDueNow, $pdfSecureUrl
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="8" class="text-center">Tidak ada billing bulanan.</td>
+                                    <td colspan="9" class="text-center">Tidak ada billing bulanan.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>

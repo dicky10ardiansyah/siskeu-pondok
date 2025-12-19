@@ -124,11 +124,11 @@ class BillsController extends BaseController
 
     public function generateBills()
     {
-        $month = $this->request->getPost('month');
-        $year  = $this->request->getPost('year');
-        $userIdFilter = $this->request->getPost('user_id');
+        $selectedMonth = (int) $this->request->getPost('month');
+        $selectedYear  = (int) $this->request->getPost('year');
+        $userIdFilter  = $this->request->getPost('user_id');
 
-        if (!$month || !$year) {
+        if (!$selectedMonth || !$selectedYear) {
             return redirect()->back()->with('error', 'Bulan dan Tahun harus dipilih!');
         }
 
@@ -169,6 +169,7 @@ class BillsController extends BaseController
                 ->findAll();
 
             if (!$rules) {
+                // jika belum ada aturan, buat semua kategori
                 foreach ($categories as $category) {
                     if ($userRole !== 'admin' && $category['user_id'] != $student['user_id']) continue;
 
@@ -194,34 +195,69 @@ class BillsController extends BaseController
                 if (!$category) continue;
                 if ($userRole !== 'admin' && $category['user_id'] != $student['user_id']) continue;
 
-                $billMonth = $category['billing_type'] === 'monthly' ? $month : null;
-
-                // Cek tagihan sudah ada
-                $existingBillQuery = $this->billModel
-                    ->where('student_id', $student['id'])
-                    ->where('category_id', $rule['category_id']);
-                if ($category['billing_type'] === 'monthly') {
-                    $existingBillQuery->where('month', $month)->where('year', $year);
-                }
-                if ($existingBillQuery->first()) continue;
-
                 $amount = $rule['amount'] ?? $category['default_amount'] ?? 0;
 
-                // Insert tagihan baru dengan class_id untuk historis
-                $this->billModel->insert([
-                    'student_id'  => $student['id'],
-                    'class_id'    => $student['class'], // simpan kelas saat generate
-                    'category_id' => $rule['category_id'],
-                    'month'       => $billMonth,
-                    'year'        => $year,
-                    'amount'      => $amount,
-                    'paid_amount' => 0,
-                    'status'      => 'unpaid',
-                    'user_id'     => $student['user_id'],
-                    'created_at'  => date('Y-m-d H:i:s')
-                ]);
+                if ($category['billing_type'] === 'monthly') {
+                    $duration = (int) ($category['duration_months'] ?? 0);
 
-                $generated = true;
+                    // Hitung jumlah tagihan yang sudah ada untuk kategori ini
+                    $existingCount = $this->billModel
+                        ->where('student_id', $student['id'])
+                        ->where('category_id', $category['id'])
+                        ->countAllResults();
+
+                    // Jika durasi ada dan sudah penuh → skip
+                    if ($duration > 0 && $existingCount >= $duration) continue;
+
+                    // Cek apakah bulan ini sudah ada
+                    $existing = $this->billModel
+                        ->where('student_id', $student['id'])
+                        ->where('category_id', $category['id'])
+                        ->where('month', $selectedMonth)
+                        ->where('year', $selectedYear)
+                        ->first();
+
+                    if ($existing) continue;
+
+                    // Insert tagihan monthly
+                    $this->billModel->insert([
+                        'student_id'  => $student['id'],
+                        'class_id'    => $student['class'],
+                        'category_id' => $category['id'],
+                        'month'       => $selectedMonth,
+                        'year'        => $selectedYear,
+                        'amount'      => $amount,
+                        'paid_amount' => 0,
+                        'status'      => 'unpaid',
+                        'user_id'     => $student['user_id'],
+                        'created_at'  => date('Y-m-d H:i:s')
+                    ]);
+
+                    $generated = true;
+                } else {
+                    // One-time billing
+                    $existing = $this->billModel
+                        ->where('student_id', $student['id'])
+                        ->where('category_id', $category['id'])
+                        ->first();
+
+                    if ($existing) continue;
+
+                    $this->billModel->insert([
+                        'student_id'  => $student['id'],
+                        'class_id'    => $student['class'],
+                        'category_id' => $category['id'],
+                        'month'       => $selectedMonth,
+                        'year'        => $selectedYear,
+                        'amount'      => $amount,
+                        'paid_amount' => 0,
+                        'status'      => 'unpaid',
+                        'user_id'     => $student['user_id'],
+                        'created_at'  => date('Y-m-d H:i:s')
+                    ]);
+
+                    $generated = true;
+                }
             }
         }
 

@@ -3,164 +3,140 @@
 <?= $this->section('content') ?>
 
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-md-10 offset-md-1">
         <div class="card">
             <div class="card-header">
                 <h5>Edit Tarif Siswa: <?= esc($student['name']) ?> (<?= esc($student['nis']) ?>)</h5>
             </div>
+
             <div class="card-body">
-
-                <?php if ($role === 'admin'): ?>
-                    <form method="get" class="mb-3">
-                        <div class="form-group">
-                            <label><strong>User</strong></label>
-                            <select name="user_id" class="form-control" onchange="this.form.submit()">
-                                <?php foreach ($users as $u): ?>
-                                    <option value="<?= $u['id'] ?>"
-                                        <?= $u['id'] == $selectedUserId ? 'selected' : '' ?>>
-                                        <?= esc($u['name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </form>
-                <?php endif; ?>
-
-                <!-- Update Amount -->
                 <form action="<?= base_url('students/' . $student['id'] . '/payment-rules') ?>" method="post">
                     <?= csrf_field() ?>
 
                     <?php
-                    // ===============================
-                    // INDEX RULE BERDASARKAN CATEGORY
-                    // ===============================
                     $rulesByCategory = [];
                     foreach ($rules as $r) {
                         $rulesByCategory[$r['category_id']] = $r;
                     }
 
-                    // Tarif kelas
                     $classRulesArr = [];
                     foreach ($classRules as $cr) {
                         $classRulesArr[$cr['category_id']] = $cr['amount'];
                     }
                     ?>
 
-                    <?php foreach ($categories as $category): ?>
-                        <?php
-                        $rule = $rulesByCategory[$category['id']] ?? null;
+                    <table class="table table-bordered table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th width="5%">No</th>
+                                <th>Kategori</th>
+                                <th width="30%">Tarif</th>
+                                <th width="15%" class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $no = 1; ?>
+                            <?php foreach ($categories as $category): ?>
+                                <?php
+                                $rule = $rulesByCategory[$category['id']] ?? null;
+                                $amount = $rule['amount']
+                                    ?? ($classRulesArr[$category['id']] ?? $category['default_amount'] ?? 0);
+                                $isActive = $rule && (int)$rule['is_mandatory'] === 1;
+                                ?>
+                                <tr>
+                                    <td><?= $no++ ?></td>
+                                    <td><?= esc($category['name']) ?></td>
+                                    <td>
+                                        <input type="text"
+                                            name="amount[<?= $rule['id'] ?? 'new_' . $category['id'] ?>]"
+                                            class="form-control currency"
+                                            value="<?= number_format($amount, 0, ',', '.') ?>">
+                                    </td>
+                                    <td class="text-center">
+                                        <?php if ($rule): ?>
+                                            <div class="custom-control custom-switch">
+                                                <input type="checkbox"
+                                                    class="custom-control-input toggle-rule"
+                                                    id="switch<?= $rule['id'] ?>"
+                                                    data-student="<?= $student['id'] ?>"
+                                                    data-rule="<?= $rule['id'] ?>"
+                                                    <?= $isActive ? 'checked' : '' ?>>
+                                                <label class="custom-control-label"
+                                                    for="switch<?= $rule['id'] ?>"></label>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="badge badge-secondary">Belum aktif</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
 
-                        // prioritas: rule siswa > rule kelas > default kategori
-                        $amount = $rule['amount']
-                            ?? ($classRulesArr[$category['id']] ?? $category['default_amount'] ?? 0);
-                        ?>
-                        <div class="form-group d-flex align-items-center mb-2">
-                            <label class="mr-2" style="width: 200px">
-                                <?= esc($category['name']) ?>
-                            </label>
-
-                            <input type="text"
-                                name="amount[<?= $rule['id'] ?? 'new_' . $category['id'] ?>]"
-                                class="form-control mr-2 currency"
-                                value="<?= number_format($amount, 0, ',', '.') ?>">
-
-                            <!-- Tombol Enable / Disable -->
-                            <?php if ($rule): ?>
-                                <?php if ((int)$rule['is_mandatory'] === 1): ?>
-                                    <a href="<?= base_url("students/{$student['id']}/payment-rules/disable/{$rule['id']}") ?>"
-                                        class="btn btn-warning btn-sm btn-disable">
-                                        <i class="fas fa-ban"></i> Nonaktifkan
-                                    </a>
-                                <?php else: ?>
-                                    <a href="<?= base_url("students/{$student['id']}/payment-rules/enable/{$rule['id']}") ?>"
-                                        class="btn btn-success btn-sm btn-enable">
-                                        <i class="fas fa-check"></i> Aktifkan
-                                    </a>
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <span class="badge badge-secondary ml-2">Belum aktif</span>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update</button>
-                    <a href="<?= base_url('students') ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Batal</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update
+                    </button>
+                    <a href="<?= base_url('students') ?>" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Batal
+                    </a>
                 </form>
-
             </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 2000,
-            timerProgressBar: true
-        });
+        // Toggle enable / disable
+        document.querySelectorAll('.toggle-rule').forEach(toggle => {
+            toggle.addEventListener('change', function() {
 
-        <?php if (session()->getFlashdata('success')): ?>
-            Toast.fire({
-                icon: 'success',
-                title: '<?= session()->getFlashdata('success') ?>'
-            });
-        <?php endif; ?>
+                const ruleId = this.dataset.rule;
+                const studentId = this.dataset.student;
+                const checked = this.checked;
 
-        <?php if (session()->getFlashdata('error')): ?>
-            Toast.fire({
-                icon: 'error',
-                title: '<?= session()->getFlashdata('error') ?>'
-            });
-        <?php endif; ?>
+                const url = checked ?
+                    `<?= base_url('students') ?>/${studentId}/payment-rules/enable/${ruleId}` :
+                    `<?= base_url('students') ?>/${studentId}/payment-rules/disable/${ruleId}`;
 
-            // SweetAlert2 untuk tombol Nonaktifkan & Aktifkan
-            ['disable', 'enable'].forEach(function(type) {
-                document.querySelectorAll('.btn-' + type).forEach(function(btn) {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const href = this.getAttribute('href');
-                        const text = type === 'disable' ?
-                            "Siswa tidak akan dikenakan tagihan kategori ini!" :
-                            "Siswa akan dikenakan kembali tagihan ini!";
-                        Swal.fire({
-                            title: type === 'disable' ? 'Yakin ingin menonaktifkan rule ini?' : 'Aktifkan kembali rule ini?',
-                            text: text,
-                            icon: type === 'disable' ? 'warning' : 'info',
-                            showCancelButton: true,
-                            confirmButtonColor: type === 'disable' ? '#3085d6' : '#28a745',
-                            cancelButtonColor: '#d33',
-                            confirmButtonText: 'Ya',
-                            cancelButtonText: 'Batal'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.location.href = href;
-                            }
-                        });
-                    });
+                Swal.fire({
+                    title: checked ? 'Aktifkan tarif?' : 'Nonaktifkan tarif?',
+                    text: checked ?
+                        'Siswa akan dikenakan tagihan ini' :
+                        'Siswa tidak akan dikenakan tagihan ini',
+                    icon: checked ? 'info' : 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = url;
+                    } else {
+                        toggle.checked = !checked;
+                    }
                 });
             });
+        });
 
-        // Format currency
-        function formatRupiah(angka) {
-            return angka.replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        // Format Rupiah
+        function formatRupiah(val) {
+            return val.replace(/\D/g, '')
+                .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
-        document.querySelectorAll(".currency").forEach(function(el) {
-            el.value = formatRupiah(el.value);
-            el.addEventListener("keyup", function() {
+        document.querySelectorAll('.currency').forEach(el => {
+            el.addEventListener('keyup', function() {
                 this.value = formatRupiah(this.value);
             });
         });
 
-        // Submit form -> hilangkan titik
-        document.querySelectorAll("form").forEach(function(form) {
-            form.addEventListener("submit", function() {
-                form.querySelectorAll(".currency").forEach(el => el.value = el.value.replace(/\./g, ""));
+        // Submit → hapus titik
+        document.querySelector('form').addEventListener('submit', function() {
+            this.querySelectorAll('.currency').forEach(el => {
+                el.value = el.value.replace(/\./g, '');
             });
         });
 

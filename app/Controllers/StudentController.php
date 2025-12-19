@@ -156,7 +156,7 @@ class StudentController extends BaseController
             'class'       => 'permit_empty',
             'school_year' => 'permit_empty|integer|exact_length[4]',
             'status'      => 'permit_empty|in_list[0,1]',
-            'parent_name'  => 'required',
+            'parent_name' => 'required',
             'phone'       => 'required',
         ];
 
@@ -176,8 +176,8 @@ class StudentController extends BaseController
             'school_year' => $this->request->getVar('school_year') ?: null,
             'user_id'     => $userId,
             'address'     => $this->request->getVar('address') ?: null,
-            'parent_name' => $this->request->getVar('parent_name') ?: null,
-            'phone'       => $this->request->getVar('phone') ?: null
+            'parent_name' => $this->request->getVar('parent_name'),
+            'phone'       => $this->request->getVar('phone'),
         ];
 
         // Simpan siswa
@@ -248,7 +248,7 @@ class StudentController extends BaseController
             'class'       => 'permit_empty',
             'school_year' => 'permit_empty|integer|exact_length[4]',
             'status'      => 'permit_empty|in_list[0,1]',
-            'parent_name'  => 'required',
+            'parent_name' => 'required',
             'phone'       => 'required',
         ];
 
@@ -263,8 +263,8 @@ class StudentController extends BaseController
             'status'      => $this->request->getVar('status') ? 1 : 0,
             'school_year' => $this->request->getVar('school_year') ?: null,
             'address'     => $this->request->getVar('address') ?: null,
-            'parent_name' => $this->request->getVar('parent_name') ?: null,
-            'phone'       => $this->request->getVar('phone') ?: null
+            'parent_name' => $this->request->getVar('parent_name'),
+            'phone'       => $this->request->getVar('phone'),
         ];
 
         // Admin bisa update user_id
@@ -276,7 +276,7 @@ class StudentController extends BaseController
 
         // Jika class berubah, sinkronisasi payment rules
         if (isset($updateData['class']) && $student['class'] != $updateData['class']) {
-            $this->syncStudentPaymentRules($id, $updateData['class'], $student['user_id']);
+            $this->syncStudentPaymentRules($id, $updateData['class'], $updateData['user_id'] ?? $student['user_id']);
         }
 
         return redirect()->to('/students')->with('success', 'Data siswa berhasil diupdate');
