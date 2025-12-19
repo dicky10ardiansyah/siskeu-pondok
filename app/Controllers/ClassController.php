@@ -4,19 +4,31 @@ namespace App\Controllers;
 
 use App\Models\UserModel;
 use App\Models\ClassModel;
+use App\Models\StudentModel;
 use App\Controllers\BaseController;
+use App\Models\PaymentCategoryModel;
+use App\Models\StudentPaymentRuleModel;
 use CodeIgniter\HTTP\ResponseInterface;
+use App\Models\PaymentCategoryClassRuleModel;
 
 class ClassController extends BaseController
 {
     protected $classModel;
     protected $userModel;
+    protected $paymentCategoryModel;
+    protected $paymentCategoryClassRuleModel;
+    protected $studentPaymentRuleModel;
+    protected $studentModel;
     protected $helpers = ['form'];
 
     public function __construct()
     {
         $this->classModel = new ClassModel();
         $this->userModel  = new UserModel();
+        $this->paymentCategoryModel         = new PaymentCategoryModel();
+        $this->paymentCategoryClassRuleModel = new PaymentCategoryClassRuleModel();
+        $this->studentPaymentRuleModel      = new StudentPaymentRuleModel();
+        $this->studentModel                 = new StudentModel();
     }
 
     private function authorize($ownerId)
@@ -73,20 +85,70 @@ class ClassController extends BaseController
 
     public function store()
     {
-        // Default user_id dari session
-        $userId = session()->get('user_id');
+        $session = session();
 
-        // Jika admin, ambil dari form dropdown
-        if (session()->get('user_role') === 'admin') {
+        $userId = $session->get('user_id');
+        if ($session->get('user_role') === 'admin') {
             $userId = $this->request->getPost('user_id');
         }
 
-        $this->classModel->save([
+        $db = \Config\Database::connect();
+        $db->transStart();
+
+        // ===============================
+        // INSERT CLASS
+        // ===============================
+        $this->classModel->insert([
             'name'    => $this->request->getPost('name'),
-            'user_id' => $userId,
+            'user_id' => $userId
         ]);
 
-        return redirect()->to('/classes')->with('success', 'Kelas ditambahkan');
+        $classId = $this->classModel->getInsertID();
+
+        // ===============================
+        // AUTO CREATE PAYMENT RULES
+        // ===============================
+        $categories = $this->paymentCategoryModel
+            ->where('user_id', $userId)
+            ->findAll();
+
+        foreach ($categories as $category) {
+
+            // CLASS RULE
+            $this->paymentCategoryClassRuleModel->insert([
+                'category_id'  => $category['id'],
+                'class_id'     => $classId,
+                'amount'       => $category['default_amount'],
+                'is_mandatory' => 1,
+                'user_id'      => $userId
+            ]);
+
+            // STUDENT RULE
+            $students = $this->studentModel
+                ->where('class', $classId)
+                ->findAll();
+
+            foreach ($students as $student) {
+                $this->studentPaymentRuleModel->insert([
+                    'student_id'   => $student['id'],
+                    'category_id'  => $category['id'],
+                    'amount'       => $category['default_amount'],
+                    'is_mandatory' => 1,
+                    'user_id'      => $userId,
+                    'created_at'   => date('Y-m-d H:i:s'),
+                    'updated_at'   => date('Y-m-d H:i:s')
+                ]);
+            }
+        }
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return redirect()->back()->with('error', 'Gagal menambahkan kelas');
+        }
+
+        return redirect()->to('/classes')
+            ->with('success', 'Kelas ditambahkan & tarif otomatis dibuat');
     }
 
     public function edit($id)

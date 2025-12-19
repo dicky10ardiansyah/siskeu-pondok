@@ -120,9 +120,20 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Warna sesuai AdminLTE
+    const adminlteColors = {
+        info: '#17a2b8',
+        danger: '#dc3545',
+        success: '#28a745',
+        warning: '#ffc107',
+        secondary: '#6c757d',
+        primary: '#007bff'
+    };
+
+    // Chart Distribusi Saldo Akun
     const ctxSaldo = document.getElementById('saldoChart').getContext('2d');
     const saldoChart = new Chart(ctxSaldo, {
-        type: 'pie',
+        type: 'doughnut', // lebih modern daripada pie
         data: {
             labels: ['Asset', 'Liability', 'Equity', 'Income', 'Expense'],
             datasets: [{
@@ -133,14 +144,33 @@
                     <?= $totals['income'] ?>,
                     <?= $totals['expense'] ?>
                 ],
-                backgroundColor: ['#17a2b8', '#dc3545', '#28a745', '#ffc107', '#6c757d']
+                backgroundColor: [
+                    adminlteColors.info,
+                    adminlteColors.danger,
+                    adminlteColors.success,
+                    adminlteColors.warning,
+                    adminlteColors.secondary
+                ],
+                borderWidth: 1,
+                borderColor: '#fff'
             }]
         },
         options: {
-            responsive: true
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: {
+                            family: "'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif"
+                        }
+                    }
+                }
+            }
         }
     });
 
+    // Chart Tagihan vs Pembayaran
     const ctxBilling = document.getElementById('billingChart').getContext('2d');
     const billingChart = new Chart(ctxBilling, {
         type: 'bar',
@@ -149,14 +179,44 @@
             datasets: [{
                 label: 'Jumlah (Rp)',
                 data: [<?= $total_tagihan ?>, <?= $total_dibayar ?>, <?= $total_tunggakan ?>],
-                backgroundColor: ['#007bff', '#28a745', '#dc3545']
+                backgroundColor: [
+                    adminlteColors.primary,
+                    adminlteColors.success,
+                    adminlteColors.danger
+                ],
+                borderRadius: 4, // sudut membulat mirip AdminLTE cards
+                barPercentage: 0.5
             }]
         },
         options: {
             responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return new Intl.NumberFormat('id-ID', {
+                                style: 'currency',
+                                currency: 'IDR'
+                            }).format(value);
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            family: "'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif"
+                        }
+                    }
                 }
             }
         }

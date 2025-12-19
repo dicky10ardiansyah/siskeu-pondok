@@ -253,9 +253,9 @@
                             <!-- ================= LAPORAN ================= -->
                             <li class="nav-header">LAPORAN</li>
 
-                            <li class="nav-item has-treeview <?= $seg1 === 'financial-statement' ? 'menu-open' : '' ?>">
+                            <li class="nav-item has-treeview <?= in_array($seg1, ['financial-statement', 'ledger']) ? 'menu-open' : '' ?>">
                                 <a href="#"
-                                    class="nav-link <?= $seg1 === 'financial-statement' ? 'active' : '' ?>">
+                                    class="nav-link <?= in_array($seg1, ['financial-statement', 'ledger']) ? 'active' : '' ?>">
                                     <i class="nav-icon fas fa-chart-line"></i>
                                     <p>
                                         Laporan Keuangan
@@ -285,6 +285,14 @@
                                             class="nav-link <?= $seg2 === 'laba-rugi' ? 'active' : '' ?>">
                                             <i class="far fa-circle nav-icon"></i>
                                             <p>Laba Rugi</p>
+                                        </a>
+                                    </li>
+
+                                    <li class="nav-item">
+                                        <a href="<?= site_url('ledger') ?>"
+                                            class="nav-link <?= $seg1 === 'ledger' ? 'active' : '' ?>">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Ledger Bank</p>
                                         </a>
                                     </li>
                                 </ul>
